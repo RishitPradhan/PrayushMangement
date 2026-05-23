@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Task, TaskStatus } from '@/types'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Avatar } from '@/components/shared/Avatar'
@@ -8,7 +8,7 @@ import { NotesSection } from '@/components/shared/NotesSection'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Calendar, X } from 'lucide-react'
+import { Plus, Calendar, X, MessageSquare } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface Column {
@@ -48,8 +48,28 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
   const [newTask, setNewTask] = useState<NewTaskForm>({
     title: '', project_id: '', assignee_id: '', priority: 'medium', due_date: '', description: '',
   })
+  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({})
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    async function fetchNoteCounts() {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('entity_id')
+        .eq('entity_type', 'task')
+      
+      if (!error && data) {
+        const counts: Record<string, number> = {}
+        data.forEach(note => {
+          counts[note.entity_id] = (counts[note.entity_id] || 0) + 1
+        })
+        setNoteCounts(counts)
+      }
+    }
+    fetchNoteCounts()
+  }, [tasks])
 
   const tasksByStatus = (status: TaskStatus) => tasks.filter(t => t.status === status)
 
@@ -219,12 +239,22 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
                     )}
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-[rgba(255,255,255,0.03)]">
-                      {task.due_date ? (
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
-                          <Calendar size={12} className="text-gray-600" />
-                          {formatDate(task.due_date)}
-                        </div>
-                      ) : <div />}
+                      <div className="flex items-center gap-3">
+                        {task.due_date ? (
+                          <div className="flex items-center gap-1.5 text-[11px] text-gray-500 font-medium">
+                            <Calendar size={12} className="text-gray-600" />
+                            {formatDate(task.due_date)}
+                          </div>
+                        ) : null}
+
+                        {noteCounts[task.id] > 0 && (
+                          <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium bg-gray-950/40 px-1.5 py-0.5 rounded-md border border-[rgba(255,255,255,0.03)]" title={`${noteCounts[task.id]} notes`}>
+                            <MessageSquare size={11} className="text-gray-600" />
+                            <span>{noteCounts[task.id]}</span>
+                          </div>
+                        )}
+                      </div>
+                      
                       {task.assignee && (
                         <Avatar name={task.assignee.full_name} avatarUrl={task.assignee.avatar_url} size="xs" />
                       )}
