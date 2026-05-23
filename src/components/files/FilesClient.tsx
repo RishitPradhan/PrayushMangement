@@ -17,29 +17,52 @@ const FILE_TYPE_META: Record<string, { emoji: string; label: string; color: stri
 }
 
 interface FilesClientProps {
-  files: (ProjectFile & { project?: { name: string } })[]
+  files: (ProjectFile & { project?: { name: string }; task?: { title: string } })[]
   projects: { id: string; name: string }[]
+  tasks: { id: string; title: string; project_id: string }[]
   userId: string
   userRole?: string
 }
 
-export function FilesClient({ files: initialFiles, projects, userId, userRole = 'member' }: FilesClientProps) {
+export function FilesClient({ files: initialFiles, projects, tasks, userId, userRole = 'member' }: FilesClientProps) {
   const [files, setFiles] = useState(initialFiles)
   const [showForm, setShowForm] = useState(false)
   const [editingFile, setEditingFile] = useState<ProjectFile | null>(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ name: '', url: '', type: 'url', project_id: '' })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [form, setForm] = useState({ name: '', url: '', type: 'url', project_id: '', task_id: '' })
 
   const field = (key: string) => ({
     value: form[key as keyof typeof form],
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value })),
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const val = e.target.value
+      setForm(f => {
+        const next = { ...f, [key]: val }
+        // Clear task if changing project
+        if (key === 'project_id') {
+          next.task_id = ''
+        }
+        return next
+      })
+    }
   })
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const file = e.target.files[0]
+      setSelectedFile(file)
+      // Auto fill name if empty
+      if (!form.name) {
+        setForm(f => ({ ...f, name: file.name.split('.').slice(0, -1).join('.') }))
+      }
+    }
+  }
 
   const openNewForm = () => {
     setEditingFile(null)
-    setForm({ name: '', url: '', type: 'url', project_id: '' })
+    setForm({ name: '', url: '', type: 'url', project_id: '', task_id: '' })
+    setSelectedFile(null)
     setShowForm(true)
   }
 
@@ -51,8 +74,10 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
       name: file.name || '',
       url: file.url || '',
       type: file.type || 'url',
-      project_id: file.project_id || ''
+      project_id: file.project_id || '',
+      task_id: file.task_id || ''
     })
+    setSelectedFile(null)
     setShowForm(true)
   }
 
@@ -77,9 +102,43 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
     setLoading(true)
     const supabase = createClient()
 
+    let fileUrl = form.url
+
+    // Handle PC file upload to Supabase storage
+    if (form.type === 'upload') {
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop()
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+        const filePath = `${userId}/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('files')
+          .upload(filePath, selectedFile)
+
+        if (uploadError) {
+          toast.error('File upload failed: ' + uploadError.message)
+          setLoading(false)
+          return
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('files')
+          .getPublicUrl(filePath)
+
+        fileUrl = publicUrl
+      } else if (!fileUrl) {
+        toast.error('Please choose a file to upload')
+        setLoading(false)
+        return
+      }
+    }
+
     const payload = {
-      ...form,
+      name: form.name,
+      url: fileUrl,
+      type: form.type,
       project_id: form.project_id || null,
+      task_id: form.task_id || null,
       uploaded_by: userId
     }
 
@@ -95,15 +154,16 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
       const { data, error } = await supabase
         .from('files')
         .insert([payload])
-        .select('*, project:projects(name)')
+        .select('*, project:projects(name), task:tasks(title)')
         .single()
       if (error) {
         toast.error(error.message)
       } else {
-        setFiles(prev => [data, ...prev])
+        setFiles(prev => [data as any, ...prev])
         toast.success('File added!')
         setShowForm(false)
-        setForm({ name: '', url: '', type: 'url', project_id: '' })
+        setForm({ name: '', url: '', type: 'url', project_id: '', task_id: '' })
+        setSelectedFile(null)
       }
     }
     setLoading(false)
@@ -182,6 +242,11 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
                               {file.name}
                             </p>
                             <p className="text-[10px] mt-0.5" style={{ color: meta.color + 'aa' }}>{meta.label}</p>
+                            {file.task && (
+                              <p className="text-[9.5px] text-gray-500 mt-1 bg-white/5 border border-white/5 px-1.5 py-0.5 rounded w-fit">
+                                📌 {file.task.title}
+                              </p>
+                            )}
                             <p className="text-[10px] text-[#444] mt-1">{formatDate(file.created_at)}</p>
                           </div>
                           <ExternalLink size={12} className="text-[#444] flex-shrink-0 mt-0.5 group-hover:text-[#e63946] transition-colors" />
@@ -228,18 +293,36 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
                   <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Name *</label>
                   <input type="text" className="input-base" placeholder="Homepage Design v2" required {...field('name')} />
                 </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">URL *</label>
-                  <input type="url" className="input-base" placeholder="https://..." required {...field('url')} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+                {form.type === 'upload' ? (
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider font-bold text-emerald-500">Choose File from PC *</label>
+                    {editingFile && form.url ? (
+                      <div className="text-[12px] text-gray-400 bg-gray-950/20 border border-[rgba(255,255,255,0.03)] p-2.5 rounded-lg flex items-center justify-between mb-2">
+                        <span className="truncate max-w-[200px]">{form.url.split('/').pop()}</span>
+                        <span className="text-[10px] text-emerald-500 font-bold bg-[#10b981]/10 border border-[#10b981]/15 px-1.5 py-0.5 rounded">Uploaded</span>
+                      </div>
+                    ) : null}
+                    <input 
+                      type="file" 
+                      onChange={handleFileChange} 
+                      className="input-base text-[13px]" 
+                      required={!editingFile || !form.url} 
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">URL *</label>
+                    <input type="url" className="input-base" placeholder="https://..." required {...field('url')} />
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Type</label>
                     <select className="input-base" {...field('type')}>
                       <option value="drive">Google Drive</option>
                       <option value="figma">Figma</option>
                       <option value="url">Link</option>
-                      <option value="upload">Upload</option>
+                      <option value="upload">Upload File</option>
                     </select>
                   </div>
                   <div>
@@ -247,6 +330,15 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
                     <select className="input-base" {...field('project_id')}>
                       <option value="">General</option>
                       {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Task Link</label>
+                    <select className="input-base" {...field('task_id')}>
+                      <option value="">None</option>
+                      {tasks
+                        .filter(t => !form.project_id || t.project_id === form.project_id)
+                        .map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                     </select>
                   </div>
                 </div>

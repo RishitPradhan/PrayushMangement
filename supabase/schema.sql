@@ -237,3 +237,173 @@ CREATE POLICY "Admins can write notifications" ON notifications FOR ALL TO authe
 -- *** FIX: Allow service_role to bypass RLS so the trigger can insert profiles ***
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
 CREATE POLICY "Service role full access" ON profiles FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- --------------------------------
+-- Storage & Task Files Additions
+-- --------------------------------
+ALTER TABLE files ADD COLUMN IF NOT EXISTS task_id UUID REFERENCES tasks(id) ON DELETE CASCADE;
+
+-- Create the files bucket in storage if not exists
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('files', 'files', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- RLS policies for storage objects
+CREATE POLICY "Allow authenticated users to read files bucket"
+ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'files');
+
+CREATE POLICY "Allow authenticated users to upload to files bucket"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'files');
+
+CREATE POLICY "Allow admins to delete from files bucket"
+ON storage.objects FOR DELETE TO authenticated
+USING (bucket_id = 'files' AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+
+-- --------------------------------
+-- Real-time Notifications & Triggers
+-- --------------------------------
+
+-- Safely add notifications table to supabase_realtime publication
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
+  ) THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+  
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+  EXCEPTION
+    WHEN duplicate_object THEN
+      NULL;
+  END;
+END $$;
+
+-- Function to handle creating notifications on row change
+CREATE OR REPLACE FUNCTION create_notification_on_change()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_actor_id UUID;
+  v_actor_name TEXT;
+  v_title TEXT;
+  v_message TEXT;
+  v_type TEXT;
+  v_user RECORD;
+BEGIN
+  -- Determine who made the change
+  v_actor_id := auth.uid();
+  IF v_actor_id IS NULL THEN
+    IF TG_TABLE_NAME = 'files' THEN
+      v_actor_id := NEW.uploaded_by;
+    ELSIF TG_TABLE_NAME = 'notes' THEN
+      v_actor_id := NEW.author_id;
+    END IF;
+  END IF;
+
+  -- Get actor name
+  IF v_actor_id IS NOT NULL THEN
+    SELECT COALESCE(full_name, 'Someone') INTO v_actor_name FROM public.profiles WHERE id = v_actor_id;
+  END IF;
+  v_actor_name := COALESCE(v_actor_name, 'Someone');
+
+  -- Custom messages per table
+  IF TG_TABLE_NAME = 'tasks' THEN
+    v_type := 'task';
+    IF TG_OP = 'INSERT' THEN
+      v_title := 'New Task Created';
+      v_message := v_actor_name || ' created task: "' || COALESCE(NEW.title, 'Untitled') || '"';
+    ELSIF TG_OP = 'UPDATE' THEN
+      IF COALESCE(OLD.status, '') != COALESCE(NEW.status, '') THEN
+        IF NEW.status = 'completed' THEN
+          v_title := 'Task Completed 🎉';
+          v_message := v_actor_name || ' completed task: "' || COALESCE(NEW.title, 'Untitled') || '"';
+        ELSE
+          v_title := 'Task Status Updated';
+          v_message := v_actor_name || ' changed task "' || COALESCE(NEW.title, 'Untitled') || '" to ' || COALESCE(NEW.status, 'unknown');
+        END IF;
+      ELSE
+        v_title := 'Task Updated';
+        v_message := v_actor_name || ' updated task: "' || COALESCE(NEW.title, 'Untitled') || '"';
+      END IF;
+    END IF;
+
+  ELSIF TG_TABLE_NAME = 'projects' THEN
+    v_type := 'project';
+    IF TG_OP = 'INSERT' THEN
+      v_title := 'New Project Created';
+      v_message := v_actor_name || ' created project: "' || COALESCE(NEW.name, 'Untitled') || '"';
+    ELSIF TG_OP = 'UPDATE' THEN
+      IF COALESCE(OLD.status, '') != COALESCE(NEW.status, '') THEN
+        v_title := 'Project Status Updated';
+        v_message := v_actor_name || ' changed project "' || COALESCE(NEW.name, 'Untitled') || '" to ' || COALESCE(NEW.status, 'unknown');
+      ELSE
+        v_title := 'Project Updated';
+        v_message := v_actor_name || ' updated project: "' || COALESCE(NEW.name, 'Untitled') || '"';
+      END IF;
+    END IF;
+
+  ELSIF TG_TABLE_NAME = 'clients' THEN
+    v_type := 'client';
+    IF TG_OP = 'INSERT' THEN
+      v_title := 'New Client Added';
+      v_message := v_actor_name || ' added client: "' || COALESCE(NEW.name, 'Untitled') || '"';
+    ELSIF TG_OP = 'UPDATE' THEN
+      v_title := 'Client Updated';
+      v_message := v_actor_name || ' updated client: "' || COALESCE(NEW.name, 'Untitled') || '"';
+    END IF;
+
+  ELSIF TG_TABLE_NAME = 'notes' THEN
+    v_type := 'note';
+    IF TG_OP = 'INSERT' THEN
+      v_title := 'New Note Posted';
+      v_message := v_actor_name || ' posted a note: "' || substring(COALESCE(NEW.content, '') from 1 for 40) || '..."';
+    END IF;
+
+  ELSIF TG_TABLE_NAME = 'files' THEN
+    v_type := 'file';
+    IF TG_OP = 'INSERT' THEN
+      v_title := 'New File Uploaded';
+      v_message := v_actor_name || ' uploaded file: "' || COALESCE(NEW.name, 'Untitled') || '"';
+    END IF;
+  END IF;
+
+  -- Insert notification for ALL active profiles
+  IF v_title IS NOT NULL AND v_message IS NOT NULL THEN
+    FOR v_user IN SELECT id FROM public.profiles LOOP
+      INSERT INTO public.notifications (user_id, title, message, type, read)
+      VALUES (v_user.id, v_title, v_message, v_type, FALSE);
+    END LOOP;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Attach triggers to respective tables
+DROP TRIGGER IF EXISTS tr_task_changed ON tasks;
+CREATE TRIGGER tr_task_changed
+  AFTER INSERT OR UPDATE ON tasks
+  FOR EACH ROW EXECUTE FUNCTION create_notification_on_change();
+
+DROP TRIGGER IF EXISTS tr_project_changed ON projects;
+CREATE TRIGGER tr_project_changed
+  AFTER INSERT OR UPDATE ON projects
+  FOR EACH ROW EXECUTE FUNCTION create_notification_on_change();
+
+DROP TRIGGER IF EXISTS tr_client_changed ON clients;
+CREATE TRIGGER tr_client_changed
+  AFTER INSERT OR UPDATE ON clients
+  FOR EACH ROW EXECUTE FUNCTION create_notification_on_change();
+
+DROP TRIGGER IF EXISTS tr_note_changed ON notes;
+CREATE TRIGGER tr_note_changed
+  AFTER INSERT ON notes
+  FOR EACH ROW EXECUTE FUNCTION create_notification_on_change();
+
+DROP TRIGGER IF EXISTS tr_file_changed ON files;
+CREATE TRIGGER tr_file_changed
+  AFTER INSERT ON files
+  FOR EACH ROW EXECUTE FUNCTION create_notification_on_change();

@@ -10,13 +10,22 @@ export default async function FilesPage() {
     if (data) userRole = data.role
   }
 
-  const [{ data: files }, { data: projects }] = await Promise.all([
+  const [{ data: files }, { data: projects }, { data: tasks }] = await Promise.all([
     supabase
       .from('files')
-      .select('*, project:projects(name)')
+      .select('*, project:projects(name), task:tasks(title)')
       .order('created_at', { ascending: false }),
     supabase.from('projects').select('id, name').order('name'),
+    supabase.from('tasks').select('id, title, project_id').order('title'),
   ])
 
-  return <FilesClient files={files ?? []} projects={projects ?? []} userId={user?.id ?? ''} userRole={userRole} />
+  return (
+    <FilesClient 
+      files={files ?? []} 
+      projects={projects ?? []} 
+      tasks={tasks ?? []}
+      userId={user?.id ?? ''} 
+      userRole={userRole} 
+    />
+  )
 }

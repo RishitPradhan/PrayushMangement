@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Task, TaskStatus } from '@/types'
+import { Task, TaskStatus, ProjectFile } from '@/types'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Avatar } from '@/components/shared/Avatar'
 import { NotesSection } from '@/components/shared/NotesSection'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Calendar, X, MessageSquare } from 'lucide-react'
+import { Plus, Calendar, X, MessageSquare, Upload } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface Column {
@@ -49,27 +49,124 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
     title: '', project_id: '', assignee_id: '', priority: 'medium', due_date: '', description: '',
   })
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({})
+  const [fileCounts, setFileCounts] = useState<Record<string, number>>({})
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
-    async function fetchNoteCounts() {
-      const { data, error } = await supabase
+    async function fetchDataCounts() {
+      // Fetch notes counts
+      const { data: notesData, error: notesError } = await supabase
         .from('notes')
         .select('entity_id')
         .eq('entity_type', 'task')
       
-      if (!error && data) {
+      if (!notesError && notesData) {
         const counts: Record<string, number> = {}
-        data.forEach(note => {
+        notesData.forEach(note => {
           counts[note.entity_id] = (counts[note.entity_id] || 0) + 1
         })
         setNoteCounts(counts)
       }
+
+      // Fetch files counts
+      const { data: filesData, error: filesError } = await supabase
+        .from('files')
+        .select('task_id')
+        .not('task_id', 'is', null)
+      
+      if (!filesError && filesData) {
+        const counts: Record<string, number> = {}
+        filesData.forEach(file => {
+          if (file.task_id) {
+            counts[file.task_id] = (counts[file.task_id] || 0) + 1
+          }
+        })
+        setFileCounts(counts)
+      }
     }
-    fetchNoteCounts()
+    fetchDataCounts()
   }, [tasks])
+
+  const [taskFiles, setTaskFiles] = useState<ProjectFile[]>([])
+  const [uploadingTaskFile, setUploadingTaskFile] = useState(false)
+
+  useEffect(() => {
+    if (!editingTask) {
+      setTaskFiles([])
+      return
+    }
+    const taskId = editingTask.id
+    const supabase = createClient()
+    async function fetchTaskFiles() {
+      const { data, error } = await supabase
+        .from('files')
+        .select('*')
+        .eq('task_id', taskId)
+      if (!error && data) {
+        setTaskFiles(data)
+      }
+    }
+    fetchTaskFiles()
+  }, [editingTask])
+
+  const handleUploadTaskFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !editingTask) return
+    const file = e.target.files[0]
+    const taskId = editingTask.id
+    const projectId = editingTask.project_id
+    setUploadingTaskFile(true)
+
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      toast.error('Not authenticated')
+      setUploadingTaskFile(false)
+      return
+    }
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+    const filePath = `${user.id}/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('files')
+      .upload(filePath, file)
+
+    if (uploadError) {
+      toast.error('File upload failed: ' + uploadError.message)
+      setUploadingTaskFile(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('files')
+      .getPublicUrl(filePath)
+
+    const payload = {
+      name: file.name,
+      url: publicUrl,
+      type: 'upload',
+      project_id: projectId || null,
+      task_id: taskId,
+      uploaded_by: user.id
+    }
+
+    const { data: newFile, error: insertError } = await supabase
+      .from('files')
+      .insert([payload])
+      .select('*')
+      .single()
+
+    if (insertError) {
+      toast.error('Failed to link file to task: ' + insertError.message)
+    } else {
+      setTaskFiles(prev => [...prev, newFile as any])
+      toast.success('File uploaded and attached to task!')
+    }
+    setUploadingTaskFile(false)
+  }
 
   const tasksByStatus = (status: TaskStatus) => tasks.filter(t => t.status === status)
 
@@ -248,9 +345,16 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
                         ) : null}
 
                         {noteCounts[task.id] > 0 && (
-                          <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium bg-gray-950/40 px-1.5 py-0.5 rounded-md border border-[rgba(255,255,255,0.03)]" title={`${noteCounts[task.id]} notes`}>
-                            <MessageSquare size={11} className="text-gray-600" />
+                          <div className="flex items-center gap-1 text-[11px] text-[#e63946] font-bold bg-[#e63946]/10 px-2 py-0.5 rounded-md border border-[#e63946]/15" title={`${noteCounts[task.id]} notes`}>
+                            <MessageSquare size={11} className="text-[#e63946]" />
                             <span>{noteCounts[task.id]}</span>
+                          </div>
+                        )}
+
+                        {fileCounts[task.id] > 0 && (
+                          <div className="flex items-center gap-1 text-[11px] text-[#10b981] font-bold bg-[#10b981]/10 px-2 py-0.5 rounded-md border border-[#10b981]/15" title={`${fileCounts[task.id]} files attached`}>
+                            <Upload size={11} className="text-[#10b981]" />
+                            <span>{fileCounts[task.id]}</span>
                           </div>
                         )}
                       </div>
@@ -411,6 +515,54 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
                           onChange={e => setEditingTask({ ...editingTask, description: e.target.value })}
                           disabled={userRole === 'member'}
                         />
+
+                        {/* Task Attachments Section */}
+                        <div className="space-y-2 pt-3 border-t border-[rgba(255,255,255,0.05)]">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-[11px] font-medium text-[#666] uppercase tracking-wider">Attached Files ({taskFiles.length})</label>
+                            <label className="text-[10px] text-gray-400 hover:text-white cursor-pointer flex items-center gap-1 bg-[#1a1a24] px-2 py-1 rounded-md border border-[rgba(255,255,255,0.03)] hover:border-red-500/20 transition-all">
+                              <Upload size={10} />
+                              <span>{uploadingTaskFile ? 'Uploading...' : 'Attach from PC'}</span>
+                              <input 
+                                type="file" 
+                                onChange={handleUploadTaskFile} 
+                                disabled={uploadingTaskFile}
+                                className="hidden" 
+                              />
+                            </label>
+                          </div>
+                          
+                          {taskFiles.length === 0 ? (
+                            <p className="text-[11px] text-[#444] italic">No files attached to this task.</p>
+                          ) : (
+                            <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+                              {taskFiles.map(file => (
+                                <div key={file.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-950/20 border border-[rgba(255,255,255,0.03)] text-[12px]">
+                                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-[#e63946] text-gray-300 truncate pr-4">
+                                    <span className="text-[11px]">📎</span>
+                                    <span className="truncate max-w-[200px]">{file.name}</span>
+                                  </a>
+                                  {userRole === 'admin' && (
+                                    <button 
+                                      onClick={async (e) => {
+                                        e.preventDefault();
+                                        if (!confirm(`Are you sure you want to delete "${file.name}"?`)) return;
+                                        const supabase = createClient();
+                                        const { error } = await supabase.from('files').delete().eq('id', file.id);
+                                        if (error) toast.error(error.message);
+                                        else setTaskFiles(prev => prev.filter(f => f.id !== file.id));
+                                      }}
+                                      className="text-gray-500 hover:text-red-500 transition-colors px-1"
+                                      title="Delete file"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
                         {userRole === 'admin' && (
                           <div className="flex items-center justify-end gap-2 pt-2 border-t border-[rgba(255,255,255,0.05)]">

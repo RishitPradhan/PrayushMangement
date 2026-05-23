@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -12,6 +14,53 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children, userRole, userProfile }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (!userProfile?.id) return
+
+    const supabase = createClient()
+
+    // Subscribe to real-time notification inserts
+    const channel = supabase
+      .channel(`realtime-notifications-${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications'
+        },
+        (payload) => {
+          if (payload.new.user_id === userProfile.id) {
+            const getRedirectUrl = (type: string) => {
+              switch(type) {
+                case 'task': return '/tasks'
+                case 'project': return '/projects'
+                case 'client': return '/clients'
+                case 'file': return '/files'
+                case 'note': return '/tasks'
+                default: return '/notifications'
+              }
+            }
+            toast(payload.new.title, {
+              description: payload.new.message,
+              duration: 6000,
+              action: {
+                label: 'View',
+                onClick: () => {
+                  window.location.href = getRedirectUrl(payload.new.type)
+                }
+              }
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [userProfile?.id])
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#000000] relative">

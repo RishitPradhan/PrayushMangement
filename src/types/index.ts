@@ -97,7 +97,8 @@ export interface Note {
 // --------------------------------
 export interface ProjectFile {
   id: string;
-  project_id: string;
+  project_id: string | null;
+  task_id?: string | null;
   name: string;
   url: string;
   type: FileType;
@@ -106,6 +107,7 @@ export interface ProjectFile {
   // Joined
   project?: Project;
   uploader?: Profile;
+  task?: { id: string; title: string };
 }
 
 // --------------------------------
