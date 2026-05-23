@@ -18,9 +18,10 @@ const pageTitles: Record<string, string> = {
 interface TopbarProps {
   userProfile?: { full_name: string; avatar_url?: string | null }
   onMenuToggle?: () => void
+  hasUnread?: boolean
 }
 
-export function Topbar({ userProfile, onMenuToggle }: TopbarProps) {
+export function Topbar({ userProfile, onMenuToggle, hasUnread }: TopbarProps) {
   const pathname = usePathname()
   const title = Object.entries(pageTitles).find(([path]) =>
     path === '/' ? pathname === '/' : pathname.startsWith(path)
@@ -57,7 +58,9 @@ export function Topbar({ userProfile, onMenuToggle }: TopbarProps) {
           className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full bg-[#121216] border border-[rgba(255,255,255,0.03)] hover:border-[rgba(255,255,255,0.08)] transition-all group"
         >
           <Bell size={15} className="text-gray-400 group-hover:text-white transition-colors" />
-          <span className="absolute top-2 sm:top-2.5 right-2 sm:right-2.5 w-1.5 h-1.5 rounded-full bg-[#eab308] ring-2 ring-[#121216]" />
+          {hasUnread && (
+            <span className="absolute top-2 sm:top-2.5 right-2 sm:right-2.5 w-1.5 h-1.5 rounded-full bg-[#eab308] ring-2 ring-[#121216]" />
+          )}
         </Link>
 
         {/* Avatar */}

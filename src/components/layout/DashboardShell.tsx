@@ -6,6 +6,8 @@ import { Topbar } from './Topbar'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
+import { usePathname } from 'next/navigation'
+
 interface DashboardShellProps {
   children: React.ReactNode
   userRole: string
@@ -14,11 +16,30 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children, userRole, userProfile }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [hasUnread, setHasUnread] = useState(false)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    if (pathname === '/notifications') {
+      setHasUnread(false)
+    }
+  }, [pathname])
 
   useEffect(() => {
     if (!userProfile?.id) return
 
     const supabase = createClient()
+
+    // Fetch initial unread count
+    const fetchUnreadCount = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userProfile.id)
+        .eq('read', false)
+      setHasUnread((count ?? 0) > 0)
+    }
+    fetchUnreadCount()
 
     // Subscribe to real-time notification inserts
     const channel = supabase
@@ -32,6 +53,7 @@ export function DashboardShell({ children, userRole, userProfile }: DashboardShe
         },
         (payload) => {
           if (payload.new.user_id === userProfile.id) {
+            setHasUnread(true)
             const getRedirectUrl = (type: string) => {
               switch(type) {
                 case 'task': return '/tasks'
@@ -60,7 +82,7 @@ export function DashboardShell({ children, userRole, userProfile }: DashboardShe
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [userProfile?.id])
+  }, [userProfile?.id, pathname])
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#000000] relative">
@@ -84,6 +106,7 @@ export function DashboardShell({ children, userRole, userProfile }: DashboardShe
         <Topbar 
           userProfile={userProfile} 
           onMenuToggle={() => setSidebarOpen(prev => !prev)} 
+          hasUnread={hasUnread}
         />
         <main className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12">
           {children}
