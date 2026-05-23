@@ -1,4 +1,4 @@
-import { Bell, Search, Menu } from 'lucide-react'
+import { Bell, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/shared/Avatar'
@@ -43,14 +43,8 @@ export function Topbar({ userProfile, onMenuToggle, hasUnread }: TopbarProps) {
         <span className="hidden sm:block text-gray-600 text-[13px]">/ Prayush Studios</span>
       </div>
 
-      {/* Right: Search + Notifications + Avatar */}
+      {/* Right: Notifications + Avatar */}
       <div className="flex items-center gap-3 sm:gap-5">
-        {/* Search */}
-        <div className="hidden md:flex items-center gap-2 bg-[#121216] border border-[rgba(255,255,255,0.03)] rounded-full px-4 py-2.5 text-gray-500 text-[13px] w-64 cursor-pointer hover:border-[rgba(255,255,255,0.08)] transition-all">
-          <Search size={15} className="text-gray-600" />
-          <span>Search...</span>
-          <kbd className="ml-auto bg-black rounded-full px-2 py-0.5 text-[10px] text-gray-400 font-bold tracking-widest">⌘K</kbd>
-        </div>
 
         {/* Notifications */}
         <Link
