@@ -81,19 +81,19 @@ export function ProjectsClient({ projects: initialProjects, clients, userRole = 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-gray-950/20 border border-[rgba(255,255,255,0.03)] backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
+          <div className="relative w-full sm:w-64">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
               type="text"
               placeholder="Search projects..."
-              className="input-base pl-10 w-64 bg-gray-950/40 border-[rgba(255,255,255,0.03)] focus:border-red-500/20"
+              className="input-base pl-10 w-full bg-gray-950/40 border-[rgba(255,255,255,0.03)] focus:border-red-500/20"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
           <select
-            className="input-base w-auto text-[14px] bg-gray-950/40 border-[rgba(255,255,255,0.03)] cursor-pointer py-2"
+            className="input-base w-full sm:w-auto text-[14px] bg-gray-950/40 border-[rgba(255,255,255,0.03)] cursor-pointer py-2"
             value={priorityFilter}
             onChange={e => setPriorityFilter(e.target.value)}
           >

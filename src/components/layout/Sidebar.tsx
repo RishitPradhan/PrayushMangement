@@ -6,11 +6,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Users, CreditCard,
   FileText, Bell, Globe, LogOut, ChevronLeft, ChevronRight, Zap,
-  Building2
+  Building2, X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -25,10 +25,26 @@ const navItems = [
   { href: '/portal',        icon: Globe,           label: 'Client Portal', roles: ['admin', 'member'] },
 ]
 
-export function Sidebar({ userRole = 'member' }: { userRole?: string }) {
+interface SidebarProps {
+  userRole?: string
+  isOpen?: boolean
+  setIsOpen?: (open: boolean) => void
+}
+
+export function Sidebar({ userRole = 'member', isOpen = false, setIsOpen }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -40,29 +56,42 @@ export function Sidebar({ userRole = 'member' }: { userRole?: string }) {
   return (
     <motion.aside
       initial={false}
-      animate={{ width: collapsed ? 80 : 260 }}
+      animate={{ width: isMobile ? 260 : (collapsed ? 80 : 260) }}
       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-      className="h-full flex flex-col bg-[#000000] flex-shrink-0 overflow-hidden z-40 relative"
+      className={cn(
+        "fixed lg:relative inset-y-0 left-0 z-40 h-full flex flex-col bg-[#000000] flex-shrink-0 overflow-hidden transition-transform duration-300 ease-in-out lg:transition-none lg:translate-x-0 border-r border-[rgba(255,255,255,0.03)]",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-4 px-6 py-8">
-        <div className="w-10 h-10 rounded-2xl bg-[#a855f7] flex items-center justify-center flex-shrink-0 shadow-[0_0_24px_rgba(168,85,247,0.4)]">
-          <Zap size={18} className="text-white" />
+      <div className="flex items-center justify-between px-6 py-8">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-2xl bg-[#a855f7] flex items-center justify-center flex-shrink-0 shadow-[0_0_24px_rgba(168,85,247,0.4)]">
+            <Zap size={18} className="text-white" />
+          </div>
+          <AnimatePresence>
+            {(!collapsed || isMobile) && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col min-w-0"
+              >
+                <span className="text-[16px] font-bold text-white tracking-tight truncate">Prayush Studios</span>
+                <span className="text-[11px] text-gray-400 font-bold tracking-widest uppercase truncate mt-0.5">Agency OS</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col min-w-0"
-            >
-              <span className="text-[16px] font-bold text-white tracking-tight truncate">Prayush Studios</span>
-              <span className="text-[11px] text-gray-400 font-bold tracking-widest uppercase truncate mt-0.5">Agency OS</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isMobile && setIsOpen && (
+          <button 
+            onClick={() => setIsOpen(false)}
+            className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors lg:hidden"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
@@ -73,16 +102,17 @@ export function Sidebar({ userRole = 'member' }: { userRole?: string }) {
             <Link
               key={href}
               href={href}
+              onClick={() => isMobile && setIsOpen && setIsOpen(false)}
               className={cn(
                 'sidebar-item',
                 isActive && 'active',
-                collapsed && 'justify-center px-2'
+                (collapsed && !isMobile) && 'justify-center px-2'
               )}
-              title={collapsed ? label : undefined}
+              title={(collapsed && !isMobile) ? label : undefined}
             >
               <Icon size={17} className="flex-shrink-0" />
               <AnimatePresence>
-                {!collapsed && (
+                {(!collapsed || isMobile) && (
                   <motion.span
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -104,13 +134,13 @@ export function Sidebar({ userRole = 'member' }: { userRole?: string }) {
           onClick={handleSignOut}
           className={cn(
             'sidebar-item w-full text-left text-gray-400 hover:text-white',
-            collapsed && 'justify-center px-2'
+            (collapsed && !isMobile) && 'justify-center px-2'
           )}
-          title={collapsed ? 'Sign Out' : undefined}
+          title={(collapsed && !isMobile) ? 'Sign Out' : undefined}
         >
           <LogOut size={17} />
           <AnimatePresence>
-            {!collapsed && (
+            {(!collapsed || isMobile) && (
               <motion.span
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -123,27 +153,29 @@ export function Sidebar({ userRole = 'member' }: { userRole?: string }) {
         </button>
 
         {/* Collapse toggle */}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          className={cn(
-            'sidebar-item w-full text-left text-gray-400 hover:text-white',
-            collapsed && 'justify-center px-2'
-          )}
-          title={collapsed ? 'Expand' : 'Collapse'}
-        >
-          {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-              >
-                Collapse
-              </motion.span>
+        {!isMobile && (
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            className={cn(
+              'sidebar-item w-full text-left text-gray-400 hover:text-white',
+              collapsed && 'justify-center px-2'
             )}
-          </AnimatePresence>
-        </button>
+            title={collapsed ? 'Expand' : 'Collapse'}
+          >
+            {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  Collapse
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+        )}
       </div>
     </motion.aside>
   )
