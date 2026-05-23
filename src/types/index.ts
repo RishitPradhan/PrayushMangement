@@ -75,20 +75,21 @@ export interface Task {
   // Joined
   project?: Project;
   assignee?: Profile;
-  comments?: Comment[];
+  notes?: Note[];
 }
 
 // --------------------------------
-// Comment
+// Note
 // --------------------------------
-export interface Comment {
+export interface Note {
   id: string;
-  task_id: string;
-  user_id: string;
+  author_id: string;
+  entity_id: string;
+  entity_type: 'project' | 'task';
   content: string;
   created_at: string;
   // Joined
-  user?: Profile;
+  author?: Profile;
 }
 
 // --------------------------------
@@ -131,7 +132,7 @@ export interface ActivityLog {
   id: string;
   user_id: string;
   action: string;
-  entity_type: 'project' | 'task' | 'client' | 'file' | 'payment' | 'comment';
+  entity_type: 'project' | 'task' | 'client' | 'file' | 'payment' | 'note';
   entity_id: string;
   metadata?: Record<string, unknown>;
   created_at: string;
@@ -148,7 +149,7 @@ export interface Notification {
   title: string;
   message: string;
   read: boolean;
-  type?: 'task' | 'project' | 'payment' | 'deadline' | 'comment';
+  type?: 'task' | 'project' | 'payment' | 'deadline' | 'note';
   created_at: string;
 }
 

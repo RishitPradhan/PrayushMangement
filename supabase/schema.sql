@@ -98,12 +98,14 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 
 -- --------------------------------
--- Comments
+-- Notes
 -- --------------------------------
-CREATE TABLE IF NOT EXISTS comments (
+DROP TABLE IF EXISTS comments CASCADE;
+CREATE TABLE IF NOT EXISTS notes (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  author_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  entity_id UUID NOT NULL,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('project', 'task')),
   content TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -170,28 +172,68 @@ ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+-- Helper function to get current user role
+CREATE OR REPLACE FUNCTION get_user_role()
+RETURNS TEXT
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$;
+
 -- Authenticated users can read/write all (agency internal use)
 CREATE POLICY "Auth users read all"    ON profiles FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Auth users insert own"  ON profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 CREATE POLICY "Auth users update own"  ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
-CREATE POLICY "Auth users read clients"   ON clients      FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read projects"  ON projects     FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read tasks"     ON tasks        FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read comments"  ON comments     FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read files"     ON files        FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read payments"  ON payments     FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read activity"  ON activity_log FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read members"   ON project_members FOR ALL TO authenticated USING (true);
-CREATE POLICY "Auth users read notifications" ON notifications FOR ALL TO authenticated USING (auth.uid() = user_id);
+
+-- Clients
+CREATE POLICY "Anyone can read clients" ON clients FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can write clients" ON clients FOR ALL TO authenticated USING (get_user_role() = 'admin');
+
+-- Projects
+CREATE POLICY "Anyone can read projects" ON projects FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can write projects" ON projects FOR ALL TO authenticated USING (get_user_role() = 'admin');
+
+-- Tasks
+CREATE POLICY "Anyone can read tasks" ON tasks FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can write tasks" ON tasks FOR ALL TO authenticated USING (get_user_role() = 'admin');
+
+-- Notes
+CREATE POLICY "Anyone can read notes" ON notes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Anyone can create notes" ON notes FOR INSERT TO authenticated WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Only admins can update/delete notes" ON notes FOR UPDATE TO authenticated USING (get_user_role() = 'admin');
+CREATE POLICY "Only admins can delete notes" ON notes FOR DELETE TO authenticated USING (get_user_role() = 'admin');
+
+-- Files
+CREATE POLICY "Anyone can read files" ON files FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Anyone can create files" ON files FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Only admins can update/delete files" ON files FOR UPDATE TO authenticated USING (get_user_role() = 'admin');
+CREATE POLICY "Only admins can delete files" ON files FOR DELETE TO authenticated USING (get_user_role() = 'admin');
+
+-- Payments
+CREATE POLICY "Anyone can read payments" ON payments FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can write payments" ON payments FOR ALL TO authenticated USING (get_user_role() = 'admin');
+
+-- Activity Log
+CREATE POLICY "Anyone can read activity" ON activity_log FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Anyone can create activity" ON activity_log FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Only admins can modify activity" ON activity_log FOR UPDATE TO authenticated USING (get_user_role() = 'admin');
+CREATE POLICY "Only admins can delete activity" ON activity_log FOR DELETE TO authenticated USING (get_user_role() = 'admin');
+
+-- Members
+CREATE POLICY "Anyone can read members" ON project_members FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Only admins can write members" ON project_members FOR ALL TO authenticated USING (get_user_role() = 'admin');
+
+-- Notifications
+CREATE POLICY "Users read own notifications" ON notifications FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Admins can write notifications" ON notifications FOR ALL TO authenticated USING (get_user_role() = 'admin');
 
 -- *** FIX: Allow service_role to bypass RLS so the trigger can insert profiles ***
 ALTER TABLE profiles FORCE ROW LEVEL SECURITY;
--- The trigger function already has SECURITY DEFINER so it runs as the function owner
--- But we also need to grant service_role full access to write profiles:
 CREATE POLICY "Service role full access" ON profiles FOR ALL TO service_role USING (true) WITH CHECK (true);

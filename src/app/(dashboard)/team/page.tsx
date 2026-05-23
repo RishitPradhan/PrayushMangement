@@ -3,8 +3,16 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Avatar } from '@/components/shared/Avatar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 
+import { redirect } from 'next/navigation'
+
 export default async function TeamPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (data?.role !== 'admin') redirect('/')
+  }
+
   const { data: members } = await supabase
     .from('profiles')
     .select('*, assigned_tasks:tasks(id, status, priority)')

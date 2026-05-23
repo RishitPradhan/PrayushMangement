@@ -5,8 +5,16 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { TrendingUp, TrendingDown, DollarSign, Clock } from 'lucide-react'
 
+import { redirect } from 'next/navigation'
+
 export default async function PaymentsPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (data?.role !== 'admin') redirect('/')
+  }
+
   const { data: payments } = await supabase
     .from('payments')
     .select('*, project:projects(id, name, client:clients(name))')

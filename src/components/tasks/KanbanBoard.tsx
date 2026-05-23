@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Task, TaskStatus } from '@/types'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Avatar } from '@/components/shared/Avatar'
+import { NotesSection } from '@/components/shared/NotesSection'
 import { formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -28,6 +29,7 @@ interface KanbanBoardProps {
   initialTasks: Task[]
   projects: { id: string; name: string }[]
   members: { id: string; full_name: string; avatar_url?: string }[]
+  userRole?: string
 }
 
 interface NewTaskForm {
@@ -39,7 +41,7 @@ interface NewTaskForm {
   description: string
 }
 
-export function KanbanBoard({ initialTasks, projects, members }: KanbanBoardProps) {
+export function KanbanBoard({ initialTasks, projects, members, userRole = 'member' }: KanbanBoardProps) {
   const [tasks, setTasks] = useState(initialTasks)
   const [addingToColumn, setAddingToColumn] = useState<TaskStatus | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -160,12 +162,14 @@ export function KanbanBoard({ initialTasks, projects, members }: KanbanBoardProp
                   {colTasks.length}
                 </span>
               </div>
-              <button
-                onClick={() => setAddingToColumn(col.id)}
-                className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]"
-              >
-                <Plus size={15} />
-              </button>
+              {userRole === 'admin' && (
+                <button
+                  onClick={() => setAddingToColumn(col.id)}
+                  className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)]"
+                >
+                  <Plus size={15} />
+                </button>
+              )}
             </div>
 
             {/* Tasks Container */}
@@ -178,9 +182,10 @@ export function KanbanBoard({ initialTasks, projects, members }: KanbanBoardProp
                     initial={{ opacity: 0, scale: 0.97 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.97 }}
-                    draggable
-                    onDragStart={() => handleDragStart(task.id)}
-                    className="kanban-card bg-gray-950/40 border border-[rgba(255,255,255,0.03)] hover:border-red-500/20 hover:bg-gray-950/70 p-4 rounded-xl cursor-grab transition-all group"
+                    draggable={userRole === 'admin'}
+                    onDragStart={() => userRole === 'admin' && handleDragStart(task.id)}
+                    onClick={() => setEditingTask(task)}
+                    className="kanban-card bg-gray-950/40 border border-[rgba(255,255,255,0.03)] hover:border-red-500/20 hover:bg-gray-950/70 p-4 rounded-xl cursor-pointer transition-all group"
                     style={{
                       opacity: draggedTaskId === task.id ? 0.3 : 1,
                     }}
@@ -191,15 +196,16 @@ export function KanbanBoard({ initialTasks, projects, members }: KanbanBoardProp
                       </p>
                       <StatusBadge status={task.priority} className="flex-shrink-0 text-[10px]" />
                       
-                      {/* Actions */}
-                      <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#111115] p-1 rounded-md border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
-                        <button onClick={(e) => { e.stopPropagation(); setEditingTask(task) }} className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors" title="Edit">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task) }} className="p-1 text-gray-400 hover:text-[#ef4444] hover:bg-red-500/10 rounded transition-colors" title="Delete">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                        </button>
-                      </div>
+                      {userRole === 'admin' && (
+                        <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#111115] p-1 rounded-md border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
+                          <button onClick={(e) => { e.stopPropagation(); setEditingTask(task) }} className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors" title="Edit">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task) }} className="p-1 text-gray-400 hover:text-[#ef4444] hover:bg-red-500/10 rounded transition-colors" title="Delete">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {task.description && (
@@ -299,7 +305,7 @@ export function KanbanBoard({ initialTasks, projects, members }: KanbanBoardProp
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-[#111115] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl"
+                    className="bg-[#111115] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 w-full max-w-4xl space-y-4 shadow-2xl"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-white font-bold">Edit Task</h3>
@@ -308,68 +314,86 @@ export function KanbanBoard({ initialTasks, projects, members }: KanbanBoardProp
                       </button>
                     </div>
 
-                    <input
-                      autoFocus
-                      type="text"
-                      className="input-base text-[13.5px] py-2 px-3 w-full"
-                      placeholder="Task title..."
-                      value={editingTask.title}
-                      onChange={e => setEditingTask({ ...editingTask, title: e.target.value })}
-                    />
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        className="input-base text-[13.5px] py-2 px-3"
-                        value={editingTask.project_id || ''}
-                        onChange={e => setEditingTask({ ...editingTask, project_id: e.target.value })}
-                      >
-                        <option value="">No Project</option>
-                        {projects.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Form Side */}
+                      <div className="space-y-4">
+                        <input
+                          autoFocus
+                          type="text"
+                          className="input-base text-[13.5px] py-2 px-3 w-full"
+                          placeholder="Task title..."
+                          value={editingTask.title}
+                          onChange={e => setEditingTask({ ...editingTask, title: e.target.value })}
+                          disabled={userRole === 'member'}
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            className="input-base text-[13.5px] py-2 px-3"
+                            value={editingTask.project_id || ''}
+                            onChange={e => setEditingTask({ ...editingTask, project_id: e.target.value })}
+                            disabled={userRole === 'member'}
+                          >
+                            <option value="">No Project</option>
+                            {projects.map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
 
-                      <select
-                        className="input-base text-[13.5px] py-2 px-3"
-                        value={editingTask.assignee_id || ''}
-                        onChange={e => setEditingTask({ ...editingTask, assignee_id: e.target.value })}
-                      >
-                        <option value="">Unassigned</option>
-                        {members.map(m => (
-                          <option key={m.id} value={m.id}>{m.full_name}</option>
-                        ))}
-                      </select>
+                          <select
+                            className="input-base text-[13.5px] py-2 px-3"
+                            value={editingTask.assignee_id || ''}
+                            onChange={e => setEditingTask({ ...editingTask, assignee_id: e.target.value })}
+                            disabled={userRole === 'member'}
+                          >
+                            <option value="">Unassigned</option>
+                            {members.map(m => (
+                              <option key={m.id} value={m.id}>{m.full_name}</option>
+                            ))}
+                          </select>
 
-                      <select
-                        className="input-base text-[13.5px] py-2 px-3"
-                        value={editingTask.priority}
-                        onChange={e => setEditingTask({ ...editingTask, priority: e.target.value as any })}
-                      >
-                        <option value="low">Low Priority</option>
-                        <option value="medium">Medium Priority</option>
-                        <option value="high">High Priority</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
+                          <select
+                            className="input-base text-[13.5px] py-2 px-3"
+                            value={editingTask.priority}
+                            onChange={e => setEditingTask({ ...editingTask, priority: e.target.value as any })}
+                            disabled={userRole === 'member'}
+                          >
+                            <option value="low">Low Priority</option>
+                            <option value="medium">Medium Priority</option>
+                            <option value="high">High Priority</option>
+                            <option value="urgent">Urgent</option>
+                          </select>
 
-                      <input
-                        type="date"
-                        className="input-base text-[13.5px] py-2 px-3"
-                        value={editingTask.due_date ? new Date(editingTask.due_date).toISOString().split('T')[0] : ''}
-                        onChange={e => setEditingTask({ ...editingTask, due_date: e.target.value })}
-                      />
-                    </div>
+                          <input
+                            type="date"
+                            className="input-base text-[13.5px] py-2 px-3"
+                            value={editingTask.due_date ? new Date(editingTask.due_date).toISOString().split('T')[0] : ''}
+                            onChange={e => setEditingTask({ ...editingTask, due_date: e.target.value })}
+                            disabled={userRole === 'member'}
+                          />
+                        </div>
 
-                    <textarea
-                      className="input-base text-[13.5px] py-2 px-3 w-full resize-none"
-                      rows={2}
-                      placeholder="Description..."
-                      value={editingTask.description || ''}
-                      onChange={e => setEditingTask({ ...editingTask, description: e.target.value })}
-                    />
+                        <textarea
+                          className="input-base text-[13.5px] py-2 px-3 w-full resize-none"
+                          rows={2}
+                          placeholder="Description..."
+                          value={editingTask.description || ''}
+                          onChange={e => setEditingTask({ ...editingTask, description: e.target.value })}
+                          disabled={userRole === 'member'}
+                        />
 
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-[rgba(255,255,255,0.05)]">
-                      <button onClick={() => setEditingTask(null)} className="btn-ghost py-1.5 px-3 text-[13px]">Cancel</button>
-                      <button onClick={handleUpdateTask} className="btn-primary py-1.5 px-3 text-[13px]">Save Changes</button>
+                        {userRole === 'admin' && (
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[rgba(255,255,255,0.05)]">
+                            <button onClick={() => setEditingTask(null)} className="btn-ghost py-1.5 px-3 text-[13px]">Cancel</button>
+                            <button onClick={handleUpdateTask} className="btn-primary py-1.5 px-3 text-[13px]">Save Changes</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Notes Side */}
+                      <div className="h-full min-h-[300px]">
+                        <NotesSection entityId={editingTask.id} entityType="task" />
+                      </div>
                     </div>
                   </motion.div>
                 </div>

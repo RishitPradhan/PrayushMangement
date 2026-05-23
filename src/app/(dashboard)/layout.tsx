@@ -10,15 +10,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (user) {
     const { data } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url')
+      .select('full_name, avatar_url, role')
       .eq('id', user.id)
       .single()
     profile = data
   }
 
+  const userRole = profile?.role || 'member'
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#000000]">
-      <Sidebar />
+      <Sidebar userRole={userRole} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0a0a0c] relative">
         <Topbar userProfile={profile ?? undefined} />
         <main className="flex-1 overflow-y-auto p-8 sm:p-12">

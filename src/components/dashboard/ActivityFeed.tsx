@@ -9,7 +9,7 @@ const entityIcons = {
   project: FolderKanban,
   task: CheckSquare,
   file: Upload,
-  comment: MessageSquare,
+  note: MessageSquare,
   payment: CreditCard,
   client: User,
 }
@@ -18,7 +18,7 @@ const entityColors = {
   project: '#a855f7', // purple
   task: '#eab308', // yellow
   file: '#22c55e', // green
-  comment: '#c084fc', // soft purple
+  note: '#c084fc', // soft purple
   payment: '#22c55e', // green
   client: '#ef4444', // red
 }

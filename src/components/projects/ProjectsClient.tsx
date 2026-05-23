@@ -10,6 +10,7 @@ import { Project } from '@/types'
 interface ProjectsClientProps {
   projects: Project[]
   clients: { id: string; name: string; company: string }[]
+  userRole?: string
 }
 
 const statuses: { value: string; label: string }[] = [
@@ -20,7 +21,7 @@ const statuses: { value: string; label: string }[] = [
   { value: 'completed', label: 'Completed' },
 ]
 
-export function ProjectsClient({ projects: initialProjects, clients }: ProjectsClientProps) {
+export function ProjectsClient({ projects: initialProjects, clients, userRole = 'member' }: ProjectsClientProps) {
   const [projects, setProjects] = useState(initialProjects)
   const [showForm, setShowForm] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
@@ -69,9 +70,11 @@ export function ProjectsClient({ projects: initialProjects, clients }: ProjectsC
         title="Projects"
         subtitle={`${projects.length} premium client accounts active`}
         action={
-          <button onClick={() => setShowForm(true)} className="btn-primary">
-            <Plus size={16} /> New Project
-          </button>
+          userRole === 'admin' ? (
+            <button onClick={() => setShowForm(true)} className="btn-primary">
+              <Plus size={16} /> New Project
+            </button>
+          ) : undefined
         }
       />
 
@@ -128,7 +131,12 @@ export function ProjectsClient({ projects: initialProjects, clients }: ProjectsC
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filtered.map(project => (
-            <ProjectCard key={project.id} project={project} onEdit={handleEdit} onDelete={handleDelete} />
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              onEdit={userRole === 'admin' ? handleEdit : undefined} 
+              onDelete={userRole === 'admin' ? handleDelete : undefined} 
+            />
           ))}
         </div>
       )}

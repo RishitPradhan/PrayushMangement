@@ -14,18 +14,18 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { href: '/',              icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/projects',      icon: FolderKanban,    label: 'Projects' },
-  { href: '/tasks',         icon: CheckSquare,     label: 'Tasks' },
-  { href: '/clients',       icon: Building2,       label: 'Clients' },
-  { href: '/team',          icon: Users,           label: 'Team' },
-  { href: '/payments',      icon: CreditCard,      label: 'Payments' },
-  { href: '/files',         icon: FileText,        label: 'Files' },
-  { href: '/notifications', icon: Bell,            label: 'Notifications' },
-  { href: '/portal',        icon: Globe,           label: 'Client Portal' },
+  { href: '/',              icon: LayoutDashboard, label: 'Dashboard',   roles: ['admin', 'member'] },
+  { href: '/projects',      icon: FolderKanban,    label: 'Projects',    roles: ['admin', 'member'] },
+  { href: '/tasks',         icon: CheckSquare,     label: 'Tasks',       roles: ['admin', 'member'] },
+  { href: '/clients',       icon: Building2,       label: 'Clients',     roles: ['admin', 'member'] },
+  { href: '/team',          icon: Users,           label: 'Team',        roles: ['admin'] },
+  { href: '/payments',      icon: CreditCard,      label: 'Payments',    roles: ['admin'] },
+  { href: '/files',         icon: FileText,        label: 'Files',       roles: ['admin', 'member'] },
+  { href: '/notifications', icon: Bell,            label: 'Notifications', roles: ['admin', 'member'] },
+  { href: '/portal',        icon: Globe,           label: 'Client Portal', roles: ['admin', 'member'] },
 ]
 
-export function Sidebar() {
+export function Sidebar({ userRole = 'member' }: { userRole?: string }) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -67,7 +67,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-        {navItems.map(({ href, icon: Icon, label }) => {
+        {navItems.filter(item => item.roles.includes(userRole)).map(({ href, icon: Icon, label }) => {
           const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href)
           return (
             <Link

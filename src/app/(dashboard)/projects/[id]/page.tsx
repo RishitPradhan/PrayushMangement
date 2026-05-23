@@ -5,10 +5,18 @@ import { Avatar } from '@/components/shared/Avatar'
 import { formatDate, formatCurrency, getDaysUntil } from '@/lib/utils'
 import Link from 'next/link'
 import { ArrowLeft, Calendar, ExternalLink, FileText, CreditCard } from 'lucide-react'
+import { NotesSection } from '@/components/shared/NotesSection'
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { id } = await params
+
+  const { data: { user } } = await supabase.auth.getUser()
+  let userRole = 'member'
+  if (user) {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (data) userRole = data.role
+  }
 
   const [{ data: project }, { data: tasks }, { data: files }, { data: payment }] = await Promise.all([
     supabase
@@ -133,12 +141,17 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               )}
             </div>
           </div>
+
+          {/* Notes Section */}
+          <div className="mt-6 h-[400px]">
+            <NotesSection entityId={project.id} entityType="project" />
+          </div>
         </div>
 
         {/* Right sidebar */}
         <div className="space-y-4">
           {/* Payment */}
-          {payment && (
+          {userRole === 'admin' && payment && (
             <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-4">
                 <CreditCard size={14} className="text-[#e63946]" />

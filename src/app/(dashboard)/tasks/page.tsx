@@ -4,6 +4,13 @@ import { PageHeader } from '@/components/shared/PageHeader'
 
 export default async function TasksPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  let userRole = 'member'
+  if (user) {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (data) userRole = data.role
+  }
+
   const [{ data: tasks }, { data: projects }, { data: members }] = await Promise.all([
     supabase
       .from('tasks')
@@ -23,6 +30,7 @@ export default async function TasksPage() {
         initialTasks={tasks ?? []}
         projects={projects ?? []}
         members={members ?? []}
+        userRole={userRole}
       />
     </div>
   )
