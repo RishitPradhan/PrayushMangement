@@ -17,7 +17,9 @@ const cards = (stats: DashboardStats) => [
     color: '#a855f7',
     bg: 'rgba(168,85,247,0.06)',
     border: 'rgba(168,85,247,0.15)',
-    change: '+2 this month',
+    change: stats.projectsStartedThisMonth !== undefined 
+      ? `+${stats.projectsStartedThisMonth} this month`
+      : 'Active this month',
   },
   {
     label: 'Pending Tasks',

@@ -13,28 +13,72 @@ export default async function DashboardPage() {
 
   // Fetch all needed data in parallel
   const [
-    { data: projects },
+    { data: allProjectsData },
     { data: tasks },
     { data: activities },
     { data: payments },
   ] = await Promise.all([
-    supabase.from('projects').select('*, client:clients(name)').order('created_at', { ascending: false }).limit(5),
+    supabase.from('projects').select('*, client:clients(name)').order('created_at', { ascending: false }),
     supabase.from('tasks').select('*'),
     supabase.from('activity_log').select('*, user:profiles(full_name, avatar_url)').order('created_at', { ascending: false }).limit(10),
     supabase.from('payments').select('total_amount, advance_paid, balance, status'),
   ])
 
+  const allProjects = allProjectsData ?? []
   const allTasks = tasks ?? []
   const allPayments = payments ?? []
 
+  // Calculate projects started this month
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+  const projectsStartedThisMonth = allProjects.filter(p => p.created_at && new Date(p.created_at) >= startOfMonth).length
+
   const stats: DashboardStats = {
-    activeProjects: (projects ?? []).filter(p => p.status !== 'completed').length,
+    activeProjects: allProjects.filter(p => p.status !== 'completed').length,
     pendingTasks: allTasks.filter(t => t.status !== 'completed').length,
     completedTasks: allTasks.filter(t => t.status === 'completed').length,
-    overdueItems: (projects ?? []).filter(p => p.due_date && new Date(p.due_date) < new Date() && p.status !== 'completed').length,
+    overdueItems: allProjects.filter(p => p.due_date && new Date(p.due_date) < new Date() && p.status !== 'completed').length,
     totalRevenue: allPayments.reduce((sum, p) => sum + (p.advance_paid ?? 0), 0),
     pendingPayments: allPayments.reduce((sum, p) => sum + (p.balance ?? 0), 0),
+    projectsStartedThisMonth,
   }
+
+  // Generate dynamic chart data based on real projects over the last 6 months
+  const monthsData = Array.from({ length: 6 }).map((_, i) => {
+    const d = new Date()
+    d.setMonth(d.getMonth() - (5 - i))
+    return {
+      name: d.toLocaleString('default', { month: 'short' }),
+      year: d.getFullYear(),
+      monthNum: d.getMonth(),
+      completed: 0,
+      started: 0,
+    }
+  })
+
+  allProjects.forEach(p => {
+    if (!p.created_at) return
+    const pDate = new Date(p.created_at)
+    const pMonth = pDate.getMonth()
+    const pYear = pDate.getFullYear()
+
+    const match = monthsData.find(m => m.monthNum === pMonth && m.year === pYear)
+    if (match) {
+      match.started += 1
+      if (p.status === 'completed') {
+        match.completed += 1
+      }
+    }
+  })
+
+  const chartData = monthsData.map(m => ({
+    month: m.name,
+    started: m.started,
+    completed: m.completed,
+  }))
+
+  const recentProjects = allProjects.slice(0, 5)
 
   return (
     <div className="w-full flex flex-col gap-12 animate-fade-in max-w-[1600px]">
@@ -73,7 +117,7 @@ export default async function DashboardPage() {
                 <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-[#a855f7]" />Completed</span>
               </div>
             </div>
-            <ProjectChart />
+            <ProjectChart data={chartData} />
           </div>
 
           {/* Recent Projects */}
@@ -84,14 +128,14 @@ export default async function DashboardPage() {
                 View all <ArrowRight size={14} />
               </Link>
             </div>
-            {(projects ?? []).length === 0 ? (
+            {recentProjects.length === 0 ? (
               <div className="text-center py-10 text-gray-500 text-[14px]">
                 No projects yet.{' '}
                 <Link href="/projects" className="text-[#a855f7] font-semibold">Create your first project →</Link>
               </div>
             ) : (
               <div className="space-y-4">
-                {(projects ?? []).map(project => {
+                {recentProjects.map(project => {
                   const daysLeft = getDaysUntil(project.due_date)
                   const isOverdue = daysLeft !== null && daysLeft < 0
 
@@ -143,11 +187,11 @@ export default async function DashboardPage() {
           {/* Upcoming Deadlines */}
           <div className="glass-card p-8">
             <h2 className="text-[16px] font-bold text-white tracking-tight mb-5">Upcoming Deadlines</h2>
-            {(projects ?? []).filter(p => p.due_date).length === 0 ? (
+            {allProjects.filter(p => p.due_date && p.status !== 'completed').length === 0 ? (
               <p className="text-gray-500 text-[13px] text-center py-6">No deadlines set</p>
             ) : (
               <div className="space-y-4">
-                {(projects ?? [])
+                {allProjects
                   .filter(p => p.due_date && p.status !== 'completed')
                   .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
                   .slice(0, 4)

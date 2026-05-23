@@ -165,6 +165,7 @@ export interface DashboardStats {
   overdueItems: number;
   totalRevenue: number;
   pendingPayments: number;
+  projectsStartedThisMonth?: number;
 }
 
 // --------------------------------
