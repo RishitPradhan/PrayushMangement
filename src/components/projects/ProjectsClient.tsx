@@ -86,7 +86,7 @@ export function ProjectsClient({ projects: initialProjects, clients, userRole = 
             <input
               type="text"
               placeholder="Search projects..."
-              className="input-base pl-10 w-full bg-gray-950/40 border-[rgba(255,255,255,0.03)] focus:border-red-500/20"
+              className="input-base !pl-10 w-full bg-gray-950/40 border-[rgba(255,255,255,0.03)] focus:border-red-500/20"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />

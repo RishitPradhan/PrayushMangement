@@ -117,7 +117,7 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
         <input
           type="text"
           placeholder="Search clients..."
-          className="input-base pl-9"
+          className="input-base !pl-9"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />

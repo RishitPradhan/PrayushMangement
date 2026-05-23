@@ -140,7 +140,7 @@ export function FilesClient({ files: initialFiles, projects, userId, userRole = 
         <input
           type="text"
           placeholder="Search files..."
-          className="input-base pl-9"
+          className="input-base !pl-9"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />

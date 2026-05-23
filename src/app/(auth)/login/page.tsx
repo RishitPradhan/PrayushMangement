@@ -66,7 +66,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="input-base pl-10 h-11 text-[14px]"
+                  className="input-base !pl-10 h-11 text-[14px]"
                   placeholder="you@prayushstudios.com"
                   required
                 />
@@ -81,7 +81,7 @@ export default function LoginPage() {
                   type={showPass ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input-base pl-10 pr-10 h-11 text-[14px]"
+                  className="input-base !pl-10 !pr-10 h-11 text-[14px]"
                   placeholder="••••••••"
                   required
                 />

@@ -67,7 +67,7 @@ export default function SignupPage() {
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="input-base pl-10 h-11 text-[14px]"
+                  className="input-base !pl-10 h-11 text-[14px]"
                   placeholder="Prayush Sharma"
                   required
                 />
@@ -82,7 +82,7 @@ export default function SignupPage() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="input-base pl-10 h-11 text-[14px]"
+                  className="input-base !pl-10 h-11 text-[14px]"
                   placeholder="you@prayushstudios.com"
                   required
                 />
@@ -97,7 +97,7 @@ export default function SignupPage() {
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input-base pl-10 h-11 text-[14px]"
+                  className="input-base !pl-10 h-11 text-[14px]"
                   placeholder="Min. 6 characters"
                   required
                   minLength={6}
