@@ -7,6 +7,7 @@ import { DashboardStats } from '@/types'
 
 interface StatsCardsProps {
   stats: DashboardStats
+  userRole?: string
 }
 
 const cards = (stats: DashboardStats) => [
@@ -51,10 +52,19 @@ const cards = (stats: DashboardStats) => [
   },
 ]
 
-export function StatsCards({ stats }: StatsCardsProps) {
+export function StatsCards({ stats, userRole }: StatsCardsProps) {
+  const allCards = cards(stats)
+  const displayCards = userRole === 'admin' 
+    ? allCards 
+    : allCards.filter(c => c.label !== 'Total Revenue')
+
+  const gridClass = displayCards.length === 3
+    ? "grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
+    : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8"
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-      {cards(stats).map((card, i) => (
+    <div className={gridClass}>
+      {displayCards.map((card, i) => (
         <motion.div
           key={card.label}
           initial={{ opacity: 0, y: 16 }}

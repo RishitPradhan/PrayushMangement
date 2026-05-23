@@ -17,12 +17,20 @@ export default async function DashboardPage() {
     { data: tasks },
     { data: activities },
     { data: payments },
+    { data: { user } },
   ] = await Promise.all([
     supabase.from('projects').select('*, client:clients(name)').order('created_at', { ascending: false }),
     supabase.from('tasks').select('*'),
     supabase.from('activity_log').select('*, user:profiles(full_name, avatar_url)').order('created_at', { ascending: false }).limit(10),
     supabase.from('payments').select('total_amount, advance_paid, balance, status'),
+    supabase.auth.getUser(),
   ])
+
+  let userRole = 'member'
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    userRole = profile?.role || 'member'
+  }
 
   const allProjects = allProjectsData ?? []
   const allTasks = tasks ?? []
@@ -99,7 +107,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <StatsCards stats={stats} />
+      <StatsCards stats={stats} userRole={userRole} />
 
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
