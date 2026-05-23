@@ -110,9 +110,9 @@ export default async function DashboardPage() {
       <StatsCards stats={stats} userRole={userRole} />
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-12">
         {/* Projects Overview */}
-        <div className="lg:col-span-2 flex flex-col gap-10">
+        <div className="lg:col-span-2 flex flex-col gap-6 lg:gap-10">
           {/* Chart */}
           <div className="glass-card p-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right: Activity + Quick Tasks */}
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-6 lg:gap-10">
           {/* Activity */}
           <div className="glass-card p-8">
             <h2 className="text-[16px] font-bold text-white tracking-tight mb-5">Recent Activity</h2>

@@ -58,43 +58,45 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         {(client.projects ?? []).length === 0 ? (
           <p className="text-[#444] text-[12px] text-center py-6">No projects for this client</p>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Project</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Due Date</th>
-                <th>Payment</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(client.projects ?? []).map((project: {
-                id: string; name: string; status: string; priority: string;
-                due_date?: string; payment?: { total_amount: number; balance: number; status: string }
-              }) => (
-                <tr key={project.id}>
-                  <td>
-                    <Link href={`/projects/${project.id}`} className="text-white hover:text-[#e63946] transition-colors">
-                      {project.name}
-                    </Link>
-                  </td>
-                  <td><StatusBadge status={project.status} /></td>
-                  <td><StatusBadge status={project.priority} /></td>
-                  <td>{formatDate(project.due_date)}</td>
-                  <td>{project.payment ? formatCurrency(project.payment.total_amount) : '—'}</td>
-                  <td>
-                    {project.payment ? (
-                      <span className={project.payment.balance > 0 ? 'text-[#f59e0b]' : 'text-[#10b981]'}>
-                        {formatCurrency(project.payment.balance)}
-                      </span>
-                    ) : '—'}
-                  </td>
+          <div className="overflow-x-auto w-full">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Project</th>
+                  <th>Status</th>
+                  <th>Priority</th>
+                  <th>Due Date</th>
+                  <th>Payment</th>
+                  <th>Balance</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(client.projects ?? []).map((project: {
+                  id: string; name: string; status: string; priority: string;
+                  due_date?: string; payment?: { total_amount: number; balance: number; status: string }
+                }) => (
+                  <tr key={project.id}>
+                    <td>
+                      <Link href={`/projects/${project.id}`} className="text-white hover:text-[#e63946] transition-colors">
+                        {project.name}
+                      </Link>
+                    </td>
+                    <td><StatusBadge status={project.status} /></td>
+                    <td><StatusBadge status={project.priority} /></td>
+                    <td>{formatDate(project.due_date)}</td>
+                    <td>{project.payment ? formatCurrency(project.payment.total_amount) : '—'}</td>
+                    <td>
+                      {project.payment ? (
+                        <span className={project.payment.balance > 0 ? 'text-[#f59e0b]' : 'text-[#10b981]'}>
+                          {formatCurrency(project.payment.balance)}
+                        </span>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

@@ -60,7 +60,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
 
             {/* Actions overlay */}
             {(onEdit || onDelete) && (
-              <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#121216] p-1 rounded-lg border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
+              <div className="absolute top-0 right-0 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#121216] p-1 rounded-lg border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
                 {onEdit && (
                   <button onClick={handleEdit} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors" title="Edit">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>

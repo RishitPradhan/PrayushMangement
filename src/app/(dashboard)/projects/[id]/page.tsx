@@ -79,7 +79,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           </div>
 
           {/* Members */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-start sm:items-end gap-2">
             <span className="text-[11px] text-[#555] uppercase tracking-wider">Team</span>
             <div className="flex items-center gap-1">
               {members.length > 0

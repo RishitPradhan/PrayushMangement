@@ -249,12 +249,12 @@ export function FilesClient({ files: initialFiles, projects, tasks, userId, user
                             )}
                             <p className="text-[10px] text-[#444] mt-1">{formatDate(file.created_at)}</p>
                           </div>
-                          <ExternalLink size={12} className="text-[#444] flex-shrink-0 mt-0.5 group-hover:text-[#e63946] transition-all group-hover:opacity-0" />
+                          <ExternalLink size={12} className="text-[#444] flex-shrink-0 mt-0.5 group-hover:text-[#e63946] transition-all hidden lg:block group-hover:opacity-0" />
                         </a>
 
                         {/* Actions overlay */}
                         {userRole === 'admin' && (
-                          <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#121216] p-1 rounded-lg border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
+                          <div className="absolute top-3 right-3 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#121216] p-1 rounded-lg border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
                             <button onClick={(e) => openEditForm(e, file)} className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors" title="Edit">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                             </button>
