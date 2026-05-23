@@ -50,19 +50,28 @@ export function NotesSection({ entityId, entityType }: NotesSectionProps) {
     if (!newNote.trim()) return
 
     setSubmitting(true)
+    
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      toast.error('You must be logged in to post notes')
+      setSubmitting(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('notes')
       .insert([{
         content: newNote.trim(),
         entity_id: entityId,
         entity_type: entityType,
-        author_id: userId
+        author_id: user.id
       }])
       .select('*, author:profiles(id, full_name, avatar_url)')
       .single()
 
     if (error) {
-      toast.error('Failed to post note')
+      toast.error(`Failed to post note: ${error.message}`)
+      console.error('Note post error:', error)
     } else if (data) {
       setNotes(prev => [...prev, data])
       setNewNote('')
