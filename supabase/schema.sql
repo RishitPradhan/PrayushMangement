@@ -407,3 +407,18 @@ DROP TRIGGER IF EXISTS tr_file_changed ON files;
 CREATE TRIGGER tr_file_changed
   AFTER INSERT ON files
   FOR EACH ROW EXECUTE FUNCTION create_notification_on_change();
+
+-- --------------------------------
+-- Database Performance Indexes
+-- --------------------------------
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee_id ON tasks(assignee_id);
+CREATE INDEX IF NOT EXISTS idx_notes_task_id ON notes(task_id);
+CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id);
+CREATE INDEX IF NOT EXISTS idx_notes_author_id ON notes(author_id);
+CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id);
+CREATE INDEX IF NOT EXISTS idx_files_task_id ON files(task_id);
+CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id);
