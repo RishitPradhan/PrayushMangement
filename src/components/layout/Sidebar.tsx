@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, FolderKanban, CheckSquare, Users, CreditCard,
-  FileText, Bell, Globe, LogOut, ChevronLeft, ChevronRight, Zap,
+  FileText, Bell, Globe, LogOut, ChevronLeft, ChevronRight,
   Building2, X
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -66,8 +66,8 @@ export function Sidebar({ userRole = 'member', isOpen = false, setIsOpen }: Side
       {/* Logo */}
       <div className="flex items-center justify-between px-6 py-8">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-[#a855f7] flex items-center justify-center flex-shrink-0 shadow-[0_0_24px_rgba(168,85,247,0.4)]">
-            <Zap size={18} className="text-white" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 relative bg-black/20 border border-[rgba(255,255,255,0.05)] shadow-[0_0_20px_rgba(255,255,255,0.03)]">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <AnimatePresence>
             {(!collapsed || isMobile) && (

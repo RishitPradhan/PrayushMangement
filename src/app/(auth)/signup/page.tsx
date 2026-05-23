@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Zap, Mail, Lock, User } from 'lucide-react'
+import { Mail, Lock, User } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -45,8 +45,8 @@ export default function SignupPage() {
         className="w-full max-w-[400px] z-10"
       >
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="w-10 h-10 rounded-xl bg-[#e63946] flex items-center justify-center shadow-[0_0_30px_rgba(230,57,70,0.4)]">
-            <Zap size={18} className="text-white" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center bg-black/20 border border-[rgba(255,255,255,0.05)] shadow-[0_0_20px_rgba(255,255,255,0.03)] relative">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="text-white font-semibold text-[15px]">Prayush Studios</div>
