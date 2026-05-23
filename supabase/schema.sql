@@ -414,8 +414,7 @@ CREATE TRIGGER tr_file_changed
 CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee_id ON tasks(assignee_id);
-CREATE INDEX IF NOT EXISTS idx_notes_task_id ON notes(task_id);
-CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id);
+CREATE INDEX IF NOT EXISTS idx_notes_entity_id ON notes(entity_id);
 CREATE INDEX IF NOT EXISTS idx_notes_author_id ON notes(author_id);
 CREATE INDEX IF NOT EXISTS idx_files_project_id ON files(project_id);
 CREATE INDEX IF NOT EXISTS idx_files_task_id ON files(task_id);
