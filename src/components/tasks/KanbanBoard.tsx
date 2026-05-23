@@ -403,24 +403,22 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
                     <option value="">No assignee</option>
                     {members.map(m => <option key={m.id} value={m.id}>{m.full_name}</option>)}
                   </select>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      className="input-base text-[13.5px] py-2 px-3"
-                      value={newTask.priority}
-                      onChange={e => setNewTask(f => ({ ...f, priority: e.target.value }))}
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
-                    <input
-                      type="date"
-                      className="input-base text-[13.5px] py-2 px-3"
-                      value={newTask.due_date}
-                      onChange={e => setNewTask(f => ({ ...f, due_date: e.target.value }))}
-                    />
-                  </div>
+                   <select
+                    className="input-base text-[13.5px] py-2 px-3"
+                    value={newTask.priority}
+                    onChange={e => setNewTask(f => ({ ...f, priority: e.target.value }))}
+                  >
+                    <option value="low">Low Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="high">High Priority</option>
+                    <option value="urgent">Urgent Priority</option>
+                  </select>
+                  <input
+                    type="date"
+                    className="input-base text-[13.5px] py-2 px-3"
+                    value={newTask.due_date}
+                    onChange={e => setNewTask(f => ({ ...f, due_date: e.target.value }))}
+                  />
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleCreateTask(col.id)}
@@ -465,7 +463,7 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
                           disabled={userRole === 'member'}
                         />
                         
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <select
                             className="input-base text-[13.5px] py-2 px-3"
                             value={editingTask.project_id || ''}

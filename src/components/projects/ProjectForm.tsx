@@ -84,7 +84,7 @@ export function ProjectForm({ clients, initialData, onClose, onCreated }: Projec
             <input type="text" className="input-base" placeholder="e.g. Brand Identity Redesign" required {...field('name')} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Client</label>
               <select className="input-base" {...field('client_id')}>
@@ -100,7 +100,7 @@ export function ProjectForm({ clients, initialData, onClose, onCreated }: Projec
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Status</label>
               <select className="input-base" {...field('status')}>

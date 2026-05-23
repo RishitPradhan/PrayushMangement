@@ -203,7 +203,7 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Name *</label>
                     <input type="text" className="input-base" placeholder="Ayush Sharma" required {...field('name')} />
@@ -217,7 +217,7 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
                   <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Email *</label>
                   <input type="email" className="input-base" placeholder="client@company.com" required {...field('email')} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Phone</label>
                     <input type="tel" className="input-base" placeholder="+91 98765 43210" {...field('phone')} />

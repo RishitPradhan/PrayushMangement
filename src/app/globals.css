@@ -223,6 +223,37 @@ body {
   color: var(--text-placeholder);
 }
 
+/* Date input mobile & dark-mode styling */
+input[type="date"].input-base {
+  position: relative;
+  min-height: 40px;
+  padding-right: 36px !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"].input-base::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background-size: contain;
+}
+
+input[type="date"].input-base::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+input[type="date"].input-base::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.2em;
+}
+
 /* ============================================
    STATUS BADGE UTILITIES
    ============================================ */
