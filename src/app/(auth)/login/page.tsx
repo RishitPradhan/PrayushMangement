@@ -39,7 +39,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-[380px]"
+        className="w-full max-w-[400px] z-10"
       >
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8 justify-center">
@@ -53,60 +53,62 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="glass-card p-6">
-          <h1 className="text-lg font-semibold text-white mb-1">Sign in</h1>
-          <p className="text-[#555] text-[13px] mb-6">Welcome back to your workspace</p>
+        <div className="glass-card p-8 sm:p-10 border border-[rgba(255,255,255,0.05)] shadow-2xl">
+          <h1 className="text-xl font-bold text-white mb-2 tracking-tight">Sign in</h1>
+          <p className="text-gray-400 text-[14px] mb-8">Welcome back to your workspace</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-[12px] font-medium text-[#777] mb-1.5">Email</label>
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-semibold text-gray-300">Email</label>
               <div className="relative">
-                <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="input-base pl-9"
+                  className="input-base pl-10 h-11 text-[14px]"
                   placeholder="you@prayushstudios.com"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-[12px] font-medium text-[#777] mb-1.5">Password</label>
+            <div className="space-y-1.5 pt-1">
+              <label className="block text-[13px] font-semibold text-gray-300">Password</label>
               <div className="relative">
-                <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type={showPass ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input-base pl-9 pr-9"
+                  className="input-base pl-10 pr-10 h-11 text-[14px]"
                   placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#888]"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 >
-                  {showPass ? <EyeOff size={13} /> : <Eye size={13} />}
+                  {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full justify-center py-2.5 text-[13px] font-semibold"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full justify-center h-11 text-[14px] font-bold shadow-lg shadow-red-500/20"
+              >
+                {loading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </div>
           </form>
 
-          <p className="text-center text-[12px] text-[#555] mt-4">
+          <p className="text-center text-[13.5px] text-gray-400 mt-6">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-[#e63946] hover:text-[#ff6b6b]">
+            <Link href="/signup" className="text-[#e63946] hover:text-[#ff6b6b] font-semibold transition-colors">
               Sign up
             </Link>
           </p>

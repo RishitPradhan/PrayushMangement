@@ -42,7 +42,7 @@ export default function SignupPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-[380px]"
+        className="w-full max-w-[400px] z-10"
       >
         <div className="flex items-center gap-3 mb-8 justify-center">
           <div className="w-10 h-10 rounded-xl bg-[#e63946] flex items-center justify-center shadow-[0_0_30px_rgba(230,57,70,0.4)]">
@@ -54,50 +54,50 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <div className="glass-card p-6">
-          <h1 className="text-lg font-semibold text-white mb-1">Create account</h1>
-          <p className="text-[#555] text-[13px] mb-6">Join your team workspace</p>
+        <div className="glass-card p-8 sm:p-10 border border-[rgba(255,255,255,0.05)] shadow-2xl">
+          <h1 className="text-xl font-bold text-white mb-2 tracking-tight">Create account</h1>
+          <p className="text-gray-400 text-[14px] mb-8">Join your team workspace</p>
 
           <form onSubmit={handleSignup} className="space-y-4">
-            <div>
-              <label className="block text-[12px] font-medium text-[#777] mb-1.5">Full Name</label>
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-semibold text-gray-300">Full Name</label>
               <div className="relative">
-                <User size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="input-base pl-9"
+                  className="input-base pl-10 h-11 text-[14px]"
                   placeholder="Prayush Sharma"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-[12px] font-medium text-[#777] mb-1.5">Email</label>
+            <div className="space-y-1.5 pt-1">
+              <label className="block text-[13px] font-semibold text-gray-300">Email</label>
               <div className="relative">
-                <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="input-base pl-9"
+                  className="input-base pl-10 h-11 text-[14px]"
                   placeholder="you@prayushstudios.com"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-[12px] font-medium text-[#777] mb-1.5">Password</label>
+            <div className="space-y-1.5 pt-1">
+              <label className="block text-[13px] font-semibold text-gray-300">Password</label>
               <div className="relative">
-                <Lock size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#444]" />
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="input-base pl-9"
+                  className="input-base pl-10 h-11 text-[14px]"
                   placeholder="Min. 6 characters"
                   required
                   minLength={6}
@@ -105,18 +105,20 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full justify-center py-2.5 text-[13px] font-semibold"
-            >
-              {loading ? 'Creating account...' : 'Create account'}
-            </button>
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full justify-center h-11 text-[14px] font-bold shadow-lg shadow-red-500/20"
+              >
+                {loading ? 'Creating account...' : 'Create account'}
+              </button>
+            </div>
           </form>
 
-          <p className="text-center text-[12px] text-[#555] mt-4">
+          <p className="text-center text-[13.5px] text-gray-400 mt-6">
             Already have an account?{' '}
-            <Link href="/login" className="text-[#e63946] hover:text-[#ff6b6b]">
+            <Link href="/login" className="text-[#e63946] hover:text-[#ff6b6b] font-semibold transition-colors">
               Sign in
             </Link>
           </p>

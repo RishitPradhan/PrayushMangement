@@ -203,8 +203,11 @@ body {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 14px; /* Increased */
-  padding: 11px 14px; /* Increased padding */
+  font-size: 14px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  padding-left: 14px;
+  padding-right: 14px;
   width: 100%;
   transition: all 0.2s ease;
   outline: none;
