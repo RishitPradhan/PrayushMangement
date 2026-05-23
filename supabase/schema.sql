@@ -421,3 +421,7 @@ CREATE INDEX IF NOT EXISTS idx_files_task_id ON files(task_id);
 CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files(uploaded_by);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_project_id ON payments(project_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_user_id ON activity_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at DESC);

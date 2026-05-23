@@ -1,20 +1,8 @@
 import { DashboardShell } from '@/components/layout/DashboardShell'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserProfile } from '@/lib/supabase/server'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  let profile = null
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, role')
-      .eq('id', user.id)
-      .single()
-    profile = data
-  }
-
+  const profile = await getCurrentUserProfile()
   const userRole = profile?.role || 'member'
 
   return (

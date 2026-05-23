@@ -1,14 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUserProfile } from '@/lib/supabase/server'
 import { FilesClient } from '@/components/files/FilesClient'
 
 export default async function FilesPage() {
+  const profile = await getCurrentUserProfile()
+  const userRole = profile?.role || 'member'
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  let userRole = 'member'
-  if (user) {
-    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (data) userRole = data.role
-  }
 
   const [{ data: files }, { data: projects }, { data: tasks }] = await Promise.all([
     supabase
@@ -24,7 +20,7 @@ export default async function FilesPage() {
       files={files ?? []} 
       projects={projects ?? []} 
       tasks={tasks ?? []}
-      userId={user?.id ?? ''} 
+      userId={profile?.id ?? ''} 
       userRole={userRole} 
     />
   )

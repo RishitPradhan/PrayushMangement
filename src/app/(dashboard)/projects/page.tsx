@@ -1,15 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUserProfile } from '@/lib/supabase/server'
 import { ProjectsClient } from '@/components/projects/ProjectsClient'
 
 export default async function ProjectsPage() {
+  const profile = await getCurrentUserProfile()
+  const userRole = profile?.role || 'member'
   const supabase = await createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  let userRole = 'member'
-  if (user) {
-    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (data) userRole = data.role
-  }
 
   const [{ data: projects }, { data: clients }] = await Promise.all([
     supabase

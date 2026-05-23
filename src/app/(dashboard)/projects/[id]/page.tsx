@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUserProfile } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Avatar } from '@/components/shared/Avatar'
@@ -8,15 +8,10 @@ import { ArrowLeft, Calendar, ExternalLink, FileText, CreditCard } from 'lucide-
 import { NotesSection } from '@/components/shared/NotesSection'
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
+  const profile = await getCurrentUserProfile()
+  const userRole = profile?.role || 'member'
   const supabase = await createClient()
   const { id } = await params
-
-  const { data: { user } } = await supabase.auth.getUser()
-  let userRole = 'member'
-  if (user) {
-    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (data) userRole = data.role
-  }
 
   const [{ data: project }, { data: tasks }, { data: files }, { data: payment }] = await Promise.all([
     supabase

@@ -1,19 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUserProfile } from '@/lib/supabase/server'
 import { ClientsClient } from '@/components/clients/ClientsClient'
 
 export default async function ClientsPage() {
+  const profile = await getCurrentUserProfile()
+  const userRole = profile?.role || 'member'
   const supabase = await createClient()
+  
   const { data: clients } = await supabase
     .from('clients')
     .select('*, projects(id, status)')
     .order('name')
-
-  const { data: { user } } = await supabase.auth.getUser()
-  let userRole = 'member'
-  if (user) {
-    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (data) userRole = data.role
-  }
 
   const clientsWithCount = (clients ?? []).map(c => ({
     ...c,

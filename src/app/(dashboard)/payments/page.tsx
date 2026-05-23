@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getCurrentUserProfile } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -8,12 +8,10 @@ import { TrendingUp, TrendingDown, DollarSign, Clock } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
 export default async function PaymentsPage() {
+  const profile = await getCurrentUserProfile()
+  if (profile?.role !== 'admin') redirect('/')
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
-    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    if (data?.role !== 'admin') redirect('/')
-  }
 
   const { data: payments } = await supabase
     .from('payments')
