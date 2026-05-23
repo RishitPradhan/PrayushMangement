@@ -140,7 +140,7 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
                   <div className="flex-1 min-w-0 pr-16">
                     <div className="flex items-center gap-2">
                       <h3 className="text-[13px] font-semibold text-white truncate">{client.name}</h3>
-                      <StatusBadge status={client.status} />
+                      <StatusBadge status={client.status} className="flex-shrink-0" />
                     </div>
                     <p className="text-[11px] text-[#555] flex items-center gap-1 mt-0.5">
                       <Building2 size={10} /> {client.company}

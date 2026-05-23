@@ -51,10 +51,12 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
           {/* Header */}
           <div className="flex items-start justify-between gap-3 relative">
             <div className="flex-1 min-w-0 pr-16">
-              <h3 className="text-[16px] font-bold text-white tracking-tight truncate mb-1 group-hover:text-[#e63946] transition-colors">{project.name}</h3>
+              <div className="flex items-center gap-2 mb-1 min-w-0">
+                <h3 className="text-[16px] font-bold text-white tracking-tight truncate group-hover:text-[#e63946] transition-colors">{project.name}</h3>
+                <StatusBadge status={project.status} className="flex-shrink-0" />
+              </div>
               <p className="text-[13px] text-gray-500 font-medium truncate">{project.client?.name ?? 'No client'}</p>
             </div>
-            <StatusBadge status={project.status} />
 
             {/* Actions overlay */}
             {(onEdit || onDelete) && (

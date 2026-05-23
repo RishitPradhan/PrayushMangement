@@ -308,10 +308,14 @@ export function KanbanBoard({ initialTasks, projects, members, userRole = 'membe
                     }}
                   >
                     <div className="flex items-start justify-between gap-3 mb-2.5 relative">
-                      <p className={`text-[13.5px] font-bold leading-snug tracking-tight pr-12 ${task.status === 'completed' ? 'line-through text-gray-500 font-medium' : 'text-white group-hover:text-[#e63946] transition-colors'}`}>
-                        {task.title}
-                      </p>
-                      <StatusBadge status={task.priority} className="flex-shrink-0 text-[10px]" />
+                      <div className="flex-1 min-w-0 pr-14">
+                        <p className={`text-[13.5px] font-bold leading-snug tracking-tight ${task.status === 'completed' ? 'line-through text-gray-500 font-medium' : 'text-white group-hover:text-[#e63946] transition-colors'}`}>
+                          {task.title}
+                        </p>
+                        <div className="mt-1.5">
+                          <StatusBadge status={task.priority} className="flex-shrink-0 text-[10px]" />
+                        </div>
+                      </div>
                       
                       {userRole === 'admin' && (
                         <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-[#111115] p-1 rounded-md border border-[rgba(255,255,255,0.05)] shadow-lg z-10">
