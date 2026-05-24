@@ -1058,7 +1058,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
             </div>
 
             {/* Right Column */}
-            <div className="space-y-8">
+            <div className="lg:sticky lg:top-8 space-y-8 lg:self-start">
               
               {/* Financial Ledger card */}
               <section className="glass-card p-8">
