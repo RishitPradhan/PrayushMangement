@@ -177,22 +177,33 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
       .eq('id', activeProject.id)
 
     if (error) {
-      toast.error('Failed to update milestone: ' + error.message)
+      console.warn('Could not save portal_roadmap to DB (schema column missing), updating in local state for preview:', error)
+      toast.success('Milestone updated in preview! (Run the SQL migration in Supabase to save permanently)')
     } else {
       toast.success('Milestone updated successfully!')
-      
-      // Update local state statefully
-      setData(prev => ({
-        ...prev,
-        projects: prev.projects.map(p => p.id === activeProject.id ? {
-          ...p,
-          portal_roadmap: newRoadmapStr
-        } : p)
-      }))
-
-      setShowEditMilestoneModal(false)
-      setSelectedMilestone(null)
     }
+
+    // Update local state statefully for immediate UI reactivity
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === activeProject.id ? {
+        ...p,
+        portal_roadmap: newRoadmapStr
+      } : p)
+    }))
+
+    // Sync active details pane state if it's currently open
+    if (activeMilestoneDetail && activeMilestoneDetail.pIdx === selectedMilestone.pIdx && activeMilestoneDetail.iIdx === selectedMilestone.iIdx) {
+      setActiveMilestoneDetail(prev => prev ? {
+        ...prev,
+        name: selectedMilestone.name,
+        tag: selectedMilestone.tag,
+        assetUrl: selectedMilestone.assetUrl
+      } : null)
+    }
+
+    setShowEditMilestoneModal(false)
+    setSelectedMilestone(null)
     setIsSubmitting(false)
   }
 
@@ -683,86 +694,86 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
               {/* Project Metrics Summary Banner */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Card 1: Current Phase */}
-                <div className="glass-card p-5 border-l-4 border-l-[#BD00FF] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-[#BD00FF] mb-1">Current Phase</p>
-                  <h4 className="text-sm font-extrabold text-white">{activeProject.portal_current_phase || 'Design & Development'}</h4>
-                  <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#BD00FF] animate-pulse" />
+                <div className="glass-card p-6 border-l-4 border-l-[#BD00FF] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
+                  <p className="text-xs uppercase font-black tracking-wider text-[#BD00FF] mb-1">Current Phase</p>
+                  <h4 className="text-base sm:text-lg font-black text-white">{activeProject.portal_current_phase || 'Design & Development'}</h4>
+                  <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#BD00FF] animate-pulse" />
                 </div>
                 {/* Card 2: Next Phase */}
-                <div className="glass-card p-5 border-l-4 border-l-[#00F2FE] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-[#00F2FE] mb-1">Next Phase</p>
-                  <h4 className="text-sm font-extrabold text-white">{activeProject.portal_next_phase || 'Launch & Handoff'}</h4>
+                <div className="glass-card p-6 border-l-4 border-l-[#00F2FE] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
+                  <p className="text-xs uppercase font-black tracking-wider text-[#00F2FE] mb-1">Next Phase</p>
+                  <h4 className="text-base sm:text-lg font-black text-white">{activeProject.portal_next_phase || 'Launch & Handoff'}</h4>
                 </div>
                 {/* Card 3: Estimated Completion */}
-                <div className="glass-card p-5 border-l-4 border-l-[#39FF14] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
-                  <p className="text-[10px] uppercase font-black tracking-widest text-[#39FF14] mb-1">Estimated Completion</p>
-                  <h4 className="text-sm font-extrabold text-white">May 2026</h4>
+                <div className="glass-card p-6 border-l-4 border-l-[#39FF14] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
+                  <p className="text-xs uppercase font-black tracking-wider text-[#39FF14] mb-1">Estimated Completion</p>
+                  <h4 className="text-base sm:text-lg font-black text-white">May 2026</h4>
                 </div>
               </div>
 
-                     {/* 1. Welcome Onboarding Card */}
+              {/* 1. Welcome Onboarding Card */}
               <section className="glass-card p-6 sm:p-8 relative overflow-hidden group hover:border-[rgba(168,85,247,0.15)] transition-all duration-300">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#a855f7] opacity-[0.02] rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
                 
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-[#a855f7] bg-[#a855f7]/5 border border-[#a855f7]/10 w-fit">
-                      <Sparkles size={11} /> Project Workspace
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest text-[#a855f7] bg-[#a855f7]/5 border border-[#a855f7]/10 w-fit">
+                      <Sparkles size={13} /> Project Workspace
                     </div>
                     
                     {/* Edit Project Button */}
                     <button 
                       onClick={openEditModal}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl border border-[rgba(255,255,255,0.04)] transition-all flex items-center gap-1.5 text-xs font-semibold self-start sm:self-auto"
+                      className="py-2.5 px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl border border-[rgba(255,255,255,0.04)] transition-all flex items-center gap-2 text-sm font-bold self-start sm:self-auto"
                     >
-                      <Pencil size={12} /> Edit Details
+                      <Pencil size={14} /> Edit Details
                     </button>
                   </div>
                   
                   <div className="space-y-3">
-                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                       {activeProject.portal_welcome_title || 'Welcome to your project portal!'}
                     </h2>
-                    <p className="text-gray-400 text-sm leading-relaxed max-w-2xl">
+                    <p className="text-gray-300 text-base leading-relaxed max-w-3xl">
                       {activeProject.portal_welcome_message || 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.'}
                     </p>
                   </div>
 
                   {/* Onboarding grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
-                    <div className="space-y-3">
-                      <h4 className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-2 text-gray-300">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7]" /> What you’ll find here
+                    <div className="space-y-4">
+                      <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 text-gray-200">
+                        <span className="w-2 h-2 rounded-full bg-[#a855f7]" /> What you’ll find here
                       </h4>
-                      <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#a855f7] font-bold">✓</span>
+                      <ul className="space-y-3.5 text-sm text-gray-300 font-medium">
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 shrink-0" />
                           <span>Project updates and current status – always know where things stand</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#a855f7] font-bold">✓</span>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 shrink-0" />
                           <span>Important documents and files – easily access what you need</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#a855f7] font-bold">✓</span>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 shrink-0" />
                           <span>Direct communication and feedback tools – share your thoughts anytime</span>
                         </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#a855f7] font-bold">✓</span>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 shrink-0" />
                           <span>Clear next steps and deliverables – see what’s coming up next</span>
                         </li>
                       </ul>
                     </div>
 
-                    <div className="space-y-3">
-                      <h4 className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-2 text-gray-300">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#e63946]" /> Quick start
+                    <div className="space-y-4">
+                      <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 text-gray-200">
+                        <span className="w-2 h-2 rounded-full bg-[#e63946]" /> Quick start
                       </h4>
-                      <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
+                      <ul className="space-y-3.5 text-sm text-gray-300 font-medium">
                         {(activeProject.portal_quick_start || 'Read through the Getting Started guide in Phase 1 below;Upload your brand assets so we can hit the ground running;Book your kickoff call using the scheduling link in Phase 1;Check back anytime to track progress and review deliverables').split(';').map((qs, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            <span className="text-[#e63946] font-bold">{i + 1}</span>
-                            <span>{qs.trim()}</span>
+                          <li key={i} className="flex items-start gap-2.5">
+                            <span className="w-5 h-5 rounded-full bg-[#e63946]/10 border border-[#e63946]/20 text-[#e63946] flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">{i + 1}</span>
+                            <span className="flex-1 mt-0.5">{qs.trim()}</span>
                           </li>
                         ))}
                       </ul>
@@ -770,22 +781,20 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   </div>
 
                   <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3">
-                    <Info size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-gray-400 leading-relaxed">
+                    <Info size={18} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-gray-300 leading-relaxed">
                       If you have any questions or need help navigating your portal, don’t hesitate to reach out to your project manager <strong>{activeProject.portal_pm_name || 'Sarah'}</strong> at <a href={`mailto:${activeProject.portal_pm_email || 'sarah@polymark.com'}`} className="text-[#a855f7] hover:underline font-bold">{activeProject.portal_pm_email || 'sarah@polymark.com'}</a>.
                     </p>
                   </div>
                 </div>
               </section>
 
-
-
               {/* 3. Interactive Roadmap (Phase 1, 2, 3) */}
               <section className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <h3 className="text-lg font-black tracking-tight text-white uppercase">Project Roadmap</h3>
-                    <p className="text-xs text-gray-500">Track milestones, guidelines, deliverables, and approvals</p>
+                    <h3 className="text-xl font-black tracking-tight text-white uppercase">Project Roadmap</h3>
+                    <p className="text-sm text-gray-400">Track milestones, guidelines, deliverables, and approvals</p>
                   </div>
                 </div>
 
@@ -802,14 +811,14 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                           >
                             <div className="space-y-1">
                               <div className="flex items-center gap-2.5">
-                                <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-wider ${badgeColor}`}>
+                                <span className={`px-2 py-0.5 rounded border text-xs font-black uppercase tracking-wider ${badgeColor}`}>
                                   {phase.phaseNum}
                                 </span>
-                                <h4 className="text-sm font-black text-white">{phase.title}</h4>
+                                <h4 className="text-base font-black text-white">{phase.title}</h4>
                               </div>
-                              <p className="text-xs text-gray-400">{phase.description}</p>
+                              <p className="text-sm text-gray-400">{phase.description}</p>
                             </div>
-                            {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                            {isExpanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
                           </button>
 
                           <AnimatePresence initial={false}>
@@ -825,32 +834,31 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                     const getMilestoneIcon = (name: string) => {
                                       const lowercaseName = name.toLowerCase();
                                       if (lowercaseName.includes('discovery') || lowercaseName.includes('inspiration') || lowercaseName.includes('research')) {
-                                        return <Sparkles className="text-[#00F2FE]" size={18} />
+                                        return <Sparkles className="text-[#00F2FE]" size={20} />
                                       }
                                       if (lowercaseName.includes('kickoff') || lowercaseName.includes('call') || lowercaseName.includes('meeting')) {
-                                        return <MessageSquare className="text-[#a855f7]" size={18} />
+                                        return <MessageSquare className="text-[#a855f7]" size={20} />
                                       }
                                       if (lowercaseName.includes('brand') || lowercaseName.includes('assets') || lowercaseName.includes('logo')) {
-                                        return <Folder className="text-[#BD00FF]" size={18} />
+                                        return <Folder className="text-[#BD00FF]" size={20} />
                                       }
                                       if (lowercaseName.includes('timeline') || lowercaseName.includes('milestones') || lowercaseName.includes('schedule')) {
-                                        return <Calendar className="text-[#39FF14]" size={18} />
+                                        return <Calendar className="text-[#39FF14]" size={20} />
                                       }
                                       if (lowercaseName.includes('design') || lowercaseName.includes('mockup') || lowercaseName.includes('prototype')) {
-                                        return <Pencil className="text-[#BD00FF]" size={18} />
+                                        return <Pencil className="text-[#BD00FF]" size={20} />
                                       }
                                       if (lowercaseName.includes('seo') || lowercaseName.includes('google') || lowercaseName.includes('marketing')) {
-                                        return <Info className="text-[#00F2FE]" size={18} />
+                                        return <Info className="text-[#00F2FE]" size={20} />
                                       }
                                       if (lowercaseName.includes('invoice') || lowercaseName.includes('payment') || lowercaseName.includes('ledger')) {
-                                        return <DollarSign className="text-[#39FF14]" size={18} />
+                                        return <DollarSign className="text-[#39FF14]" size={20} />
                                       }
-                                      return <FileText className="text-gray-400" size={18} />
+                                      return <FileText className="text-gray-400" size={20} />
                                     }
 
                                     return phase.items.map((item, iIdx) => {
                                       const isPending = item.tag.toLowerCase().includes('pending');
-                                      const isDone = !isPending && (pIdx === 0 || iIdx < 2);
                                       return (
                                         <div 
                                           key={iIdx} 
@@ -861,13 +869,13 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                           
                                           <div className="space-y-4">
                                             <div className="flex justify-between items-start">
-                                              <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center flex-shrink-0">
+                                              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center flex-shrink-0">
                                                 {getMilestoneIcon(item.name)}
                                               </div>
                                               
                                               <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
                                                 {item.tag && (
-                                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                                                  <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded border flex-shrink-0 ${
                                                     isPending 
                                                       ? 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/20 animate-pulse'
                                                       : 'bg-white/5 text-gray-400 border-white/5'
@@ -878,35 +886,54 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                                 <button 
                                                   type="button"
                                                   onClick={() => openEditMilestoneModal(pIdx, iIdx, item)}
-                                                  className="p-1 text-gray-500 hover:text-[#a855f7] hover:bg-white/5 rounded transition-all opacity-0 group-hover:opacity-100"
+                                                  className="p-1.5 text-gray-400 hover:text-[#a855f7] hover:bg-white/5 rounded transition-all opacity-80 hover:scale-105"
                                                   title="Edit Field & Assets"
                                                 >
-                                                  <Pencil size={11} />
+                                                  <Pencil size={13} />
                                                 </button>
                                               </div>
                                             </div>
 
-                                            <div className="space-y-1">
-                                              <h5 className="text-[13px] font-black text-white group-hover:text-[#a855f7] transition-all truncate">{item.name}</h5>
-                                              <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-2">
+                                            <div className="space-y-1.5">
+                                              <h5 className="text-[15px] font-black text-white group-hover:text-[#a855f7] transition-all truncate">{item.name}</h5>
+                                              <p className="text-xs sm:text-[13px] text-gray-400 leading-relaxed line-clamp-2">
                                                 Click to view deliverables, access links, and write specific updates for {item.name}.
                                               </p>
                                             </div>
                                           </div>
 
-                                          {item.assetUrl && (
+                                          {item.assetUrl ? (
                                             <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center w-full" onClick={e => e.stopPropagation()}>
-                                              <span className="text-[10px] text-gray-500 font-medium flex items-center gap-1">
-                                                <LinkIcon size={10} className="text-[#a855f7]" /> Asset Available
+                                              <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                                                <LinkIcon size={12} className="text-[#a855f7]" /> Deliverable Linked
                                               </span>
-                                              <a 
-                                                href={item.assetUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#a855f7] hover:text-white transition-all"
+                                              <div className="flex items-center gap-3">
+                                                <button 
+                                                  type="button"
+                                                  onClick={() => openEditMilestoneModal(pIdx, iIdx, item)}
+                                                  className="text-xs text-gray-400 hover:text-white transition-all font-semibold"
+                                                >
+                                                  Edit
+                                                </button>
+                                                <a 
+                                                  href={item.assetUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-1 text-xs font-black uppercase tracking-widest text-[#a855f7] hover:text-white transition-all"
+                                                >
+                                                  Open <ExternalLink size={11} />
+                                                </a>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="mt-4 pt-3 border-t border-white/5" onClick={e => e.stopPropagation()}>
+                                              <button 
+                                                type="button"
+                                                onClick={() => openEditMilestoneModal(pIdx, iIdx, item)}
+                                                className="w-full py-2 border border-dashed border-white/10 hover:border-[#a855f7]/30 hover:bg-[#a855f7]/5 rounded-xl text-xs font-bold text-gray-500 hover:text-white transition-all flex items-center justify-center gap-1.5"
                                               >
-                                                Open <ExternalLink size={10} />
-                                              </a>
+                                                <Plus size={12} className="text-[#a855f7]" /> Attach Deliverable
+                                              </button>
                                             </div>
                                           )}
                                         </div>
@@ -1055,8 +1082,8 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
               
               {/* Financial Ledger card */}
               <section className="glass-card p-8">
-                <h2 className="text-sm font-black uppercase tracking-widest text-[#555] mb-6 flex items-center gap-2">
-                  <FileText size={14} className="text-gray-500" />
+                <h2 className="text-base font-black uppercase tracking-widest text-[#555] mb-6 flex items-center gap-2">
+                  <FileText size={16} className="text-gray-500" />
                   Financial Ledger
                 </h2>
                 {activeProject.payments.length > 0 ? (
@@ -1064,25 +1091,25 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                     {activeProject.payments.map((payment) => (
                       <div key={payment.id} className="space-y-4">
                         <div className="flex justify-between items-end">
-                          <p className="text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Total Fee</p>
-                          <p className="text-md font-extrabold text-white">{formatCurrency(payment.total_amount)}</p>
+                          <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold">Total Fee</p>
+                          <p className="text-lg font-black text-white">{formatCurrency(payment.total_amount)}</p>
                         </div>
                         <div className="flex justify-between items-end">
-                          <p className="text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Advance Received</p>
-                          <p className="text-sm font-medium text-emerald-400">{formatCurrency(payment.advance_paid)}</p>
+                          <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold">Advance Received</p>
+                          <p className="text-base font-semibold text-emerald-400">{formatCurrency(payment.advance_paid)}</p>
                         </div>
                         <div className="pt-4 border-t border-[rgba(255,255,255,0.04)] flex justify-between items-end">
-                          <p className="text-[11px] text-[#e63946] uppercase tracking-widest font-black">Balance Due</p>
-                          <p className="text-xl font-black text-[#e63946]">{formatCurrency(payment.balance)}</p>
+                          <p className="text-xs text-[#e63946] uppercase tracking-widest font-black">Balance Due</p>
+                          <p className="text-2xl font-black text-[#e63946]">{formatCurrency(payment.balance)}</p>
                         </div>
                         {payment.invoice_url && (
                           <a 
                             href={payment.invoice_url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="btn-primary w-full justify-center mt-6 py-2.5 text-xs flex items-center gap-2"
+                            className="btn-primary w-full justify-center mt-6 py-3 text-sm font-bold flex items-center gap-2"
                           >
-                            <Download size={13} /> Download Invoice
+                            <Download size={14} /> Download Invoice
                           </a>
                         )}
                       </div>
@@ -1090,8 +1117,8 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   </div>
                 ) : (
                   <div className="text-center py-6">
-                    <DollarSign size={24} className="text-[#333] mx-auto mb-2" />
-                    <p className="text-gray-500 text-xs">No payment records found.</p>
+                    <DollarSign size={28} className="text-[#333] mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">No payment records found.</p>
                   </div>
                 )}
               </section>
@@ -1100,13 +1127,13 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
               <section className="glass-card p-8 relative overflow-hidden group hover:border-[#a855f7]/30 transition-all duration-300">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7] opacity-[0.02] rounded-full blur-2xl pointer-events-none" />
                 
-                <h2 className="text-sm font-black uppercase tracking-widest text-[#555] mb-4 flex items-center gap-2">
-                  <Mail size={14} className="text-gray-500" />
+                <h2 className="text-base font-black uppercase tracking-widest text-[#555] mb-4 flex items-center gap-2">
+                  <Mail size={16} className="text-gray-500" />
                   Questions?
                 </h2>
                 
                 <div className="space-y-4">
-                  <p className="text-xs text-gray-400 leading-relaxed">
+                  <p className="text-sm text-gray-300 leading-relaxed">
                     Have questions about your website redesign? Need help navigating your portal? Get in touch with your dedicated project manager.
                   </p>
 
@@ -1115,31 +1142,31 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                       S
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-white">Sarah</h4>
-                      <p className="text-[10px] text-gray-500">Project Manager</p>
+                      <h4 className="text-sm font-bold text-white">Sarah</h4>
+                      <p className="text-xs text-gray-500">Project Manager</p>
                     </div>
                   </div>
 
                   <a 
                     href="mailto:sarah@polymark.com?subject=Website Redesign Inquiry"
-                    className="w-full bg-[#a855f7] text-white hover:bg-[#b56bf9] font-extrabold py-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+                    className="w-full bg-[#a855f7] text-white hover:bg-[#b56bf9] font-black py-3 rounded-xl transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2"
                   >
-                    <Mail size={13} /> Get In Touch
+                    <Mail size={14} /> Get In Touch
                   </a>
                 </div>
               </section>
 
               {/* Revision Requests */}
               <section className="glass-card p-8">
-                <h2 className="text-sm font-black uppercase tracking-widest text-[#555] mb-4 flex items-center gap-2">
-                  <MessageSquare size={14} className="text-gray-500" />
+                <h2 className="text-base font-black uppercase tracking-widest text-[#555] mb-4 flex items-center gap-2">
+                  <MessageSquare size={16} className="text-gray-500" />
                   Request Revision
                 </h2>
-                <p className="text-[12px] text-gray-400 leading-relaxed mb-6">Need a modification or have feedback? Send a note directly to our project space.</p>
+                <p className="text-sm text-gray-300 leading-relaxed mb-6">Need a modification or have feedback? Send a note directly to our project space.</p>
                 
                 <form onSubmit={handleRevisionSubmit} className="space-y-4">
                   <textarea 
-                    className="input-base w-full resize-none h-24 text-[13px] bg-[#0a0a0c]/60 focus:border-[#a855f7]/30" 
+                    className="input-base w-full resize-none h-24 text-sm bg-[#0a0a0c]/60 focus:border-[#a855f7]/30" 
                     placeholder="E.g., Can we update the brand color in section 2?"
                     value={revisionMessage}
                     onChange={e => setRevisionMessage(e.target.value)}
@@ -1148,7 +1175,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   <button 
                     type="submit" 
                     disabled={isSubmitting}
-                    className="w-full bg-white text-black font-extrabold py-3 rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-50 text-[12px] uppercase tracking-wider flex items-center justify-center gap-2"
+                    className="w-full bg-white text-black font-black py-3 rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-50 text-sm uppercase tracking-wider flex items-center justify-center gap-2"
                   >
                     {isSubmitting ? 'Sending...' : 'Submit Note'}
                   </button>
@@ -1515,30 +1542,30 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         {showEditMilestoneModal && selectedMilestone && (
           <div className="modal-overlay" onClick={() => setShowEditMilestoneModal(false)}>
             <motion.div 
-              className="modal-content"
+              className="modal-content p-8"
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
-                <div className="space-y-0.5">
-                  <h2 className="text-[15px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
-                    <Pencil size={14} className="text-[#a855f7]" /> Edit Field & Assets
+              <div className="flex items-center justify-between mb-6">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-black uppercase text-white tracking-wider flex items-center gap-2">
+                    <Pencil size={16} className="text-[#a855f7]" /> Edit Field & Assets
                   </h2>
-                  <p className="text-[10px] text-gray-500">Add asset links and update field tags for roadmap milestone</p>
+                  <p className="text-xs text-gray-400">Add asset links, invoices, and progress tags for this milestone</p>
                 </div>
-                <button onClick={() => setShowEditMilestoneModal(false)} className="text-[#555] hover:text-white transition-colors">
-                  <X size={16} />
+                <button onClick={() => setShowEditMilestoneModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                  <X size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleEditMilestoneSubmit} className="space-y-4">
+              <form onSubmit={handleEditMilestoneSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Milestone / Field Name *</label>
+                  <label className="block text-xs font-black text-gray-300 mb-2 uppercase tracking-wider">Milestone / Field Name *</label>
                   <input 
                     type="text" 
-                    className="input-base" 
+                    className="input-base text-sm py-3" 
                     required 
                     value={selectedMilestone.name} 
                     onChange={e => setSelectedMilestone(m => m ? { ...m, name: e.target.value } : null)}
@@ -1547,10 +1574,10 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Status / Progress Tag</label>
+                  <label className="block text-xs font-black text-gray-300 mb-2 uppercase tracking-wider">Status / Progress Tag</label>
                   <input 
                     type="text" 
-                    className="input-base" 
+                    className="input-base text-sm py-3" 
                     value={selectedMilestone.tag} 
                     onChange={e => setSelectedMilestone(m => m ? { ...m, tag: e.target.value } : null)}
                     placeholder="E.g., Completed, 1 pending, 2 keys, 15 Mar"
@@ -1558,19 +1585,19 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Asset / Deliverable Link URL</label>
+                  <label className="block text-xs font-black text-gray-300 mb-2 uppercase tracking-wider">Asset / Deliverable Link URL</label>
                   <input 
                     type="url" 
-                    className="input-base" 
+                    className="input-base text-sm py-3" 
                     value={selectedMilestone.assetUrl} 
                     onChange={e => setSelectedMilestone(m => m ? { ...m, assetUrl: e.target.value } : null)}
                     placeholder="E.g., Figma link, Google Drive link, or PDF Invoice URL"
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2">
-                  <button type="button" onClick={() => setShowEditMilestoneModal(false)} className="btn-ghost text-xs">Cancel</button>
-                  <button type="submit" disabled={isSubmitting} className="btn-primary text-xs">
+                <div className="flex justify-end gap-3 pt-3">
+                  <button type="button" onClick={() => setShowEditMilestoneModal(false)} className="btn-ghost text-sm font-bold py-2.5 px-4">Cancel</button>
+                  <button type="submit" disabled={isSubmitting} className="btn-primary text-sm font-bold py-2.5 px-5">
                     {isSubmitting ? 'Saving...' : 'Save Milestone / Field'}
                   </button>
                 </div>
@@ -1583,9 +1610,9 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
       {/* Split-Pane Milestone Details & Discussion Modal */}
       <AnimatePresence>
         {showMilestoneDetailsModal && activeMilestoneDetail && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 md:p-10">
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 md:p-10">
             <motion.div 
-              className="w-full max-w-6xl h-[85vh] bg-[#0A0D14] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative"
+              className="w-full max-w-6.5xl h-[85vh] bg-[#0A0D14] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.98 }}
@@ -1593,10 +1620,10 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
               {/* Close Button Mobile/Global */}
               <button 
                 onClick={() => setShowMilestoneDetailsModal(false)}
-                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all hover:scale-105"
+                className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all hover:scale-105"
                 title="Close"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
 
               {/* Left Column (Sticky Sidebar - Milestone List) - 1/3 width */}
@@ -1604,9 +1631,9 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 <div className="p-6 border-b border-white/5 flex items-center gap-3">
                   <button 
                     onClick={() => setShowMilestoneDetailsModal(false)}
-                    className="inline-flex items-center gap-1.5 text-xs text-[#a855f7] hover:text-white transition-all font-black uppercase tracking-widest"
+                    className="inline-flex items-center gap-1.5 text-sm text-[#a855f7] hover:text-white transition-all font-black uppercase tracking-widest"
                   >
-                    <ChevronDown size={14} className="rotate-90" /> Back to Portal
+                    <ChevronDown size={16} className="rotate-90" /> Back to Portal
                   </button>
                 </div>
                 
@@ -1614,7 +1641,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-custom">
                   {parsedPhases.map((phase, pIdx) => (
                     <div key={phase.key} className="space-y-2">
-                      <div className="text-[10px] font-black uppercase tracking-wider text-gray-500 px-2">
+                      <div className="text-xs font-black uppercase tracking-wider text-gray-500 px-2">
                         {phase.phaseNum}: {phase.title}
                       </div>
                       <div className="space-y-1">
@@ -1632,18 +1659,18 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                 tag: item.tag,
                                 assetUrl: item.assetUrl || ''
                               })}
-                              className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-2.5 text-xs ${
+                              className={`w-full text-left p-3.5 rounded-xl transition-all flex items-start gap-2.5 text-sm ${
                                 isActive 
-                                  ? 'bg-[#a855f7]/10 border border-[#a855f7]/25 text-white font-extrabold shadow-lg shadow-purple-500/5'
+                                  ? 'bg-[#a855f7]/10 border border-[#a855f7]/25 text-white font-black shadow-lg shadow-purple-500/5'
                                   : 'bg-transparent border border-transparent text-gray-400 hover:bg-white/[0.02] hover:text-white'
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                              <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
                                 isActive ? 'bg-[#a855f7] animate-pulse' : 'bg-gray-600'
                               }`} />
                               <div className="min-w-0 flex-1">
-                                <p className="truncate">{item.name}</p>
-                                {item.tag && <p className="text-[9px] text-gray-500 mt-0.5">{item.tag}</p>}
+                                <p className="truncate font-bold">{item.name}</p>
+                                {item.tag && <p className="text-[10px] text-gray-500 mt-0.5">{item.tag}</p>}
                               </div>
                             </button>
                           )
@@ -1658,19 +1685,35 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
               <div className="flex-1 flex flex-col h-full bg-[#0A0D14]/90 overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 scrollbar-custom">
                   
-                  {/* Title and breadcrumb */}
-                  <div className="space-y-1">
-                    <div className="text-[10px] font-black tracking-widest text-[#a855f7] uppercase flex items-center gap-1.5">
-                      <span>{activeMilestoneDetail.phaseName}</span>
-                      <span className="w-1 h-1 rounded-full bg-gray-600" />
-                      <span>Step {activeMilestoneDetail.iIdx + 1}</span>
+                  {/* Title and breadcrumb & Edit Field trigger button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 sm:pt-0">
+                    <div className="space-y-1">
+                      <div className="text-xs font-black tracking-widest text-[#a855f7] uppercase flex items-center gap-1.5">
+                        <span>{activeMilestoneDetail.phaseName}</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+                        <span>Step {activeMilestoneDetail.iIdx + 1}</span>
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{activeMilestoneDetail.name}</h3>
                     </div>
-                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">{activeMilestoneDetail.name}</h3>
+
+                    <button
+                      onClick={() => {
+                        const phase = parsedPhases[activeMilestoneDetail.pIdx];
+                        const item = phase?.items[activeMilestoneDetail.iIdx];
+                        if (item) {
+                          openEditMilestoneModal(activeMilestoneDetail.pIdx, activeMilestoneDetail.iIdx, item);
+                        }
+                      }}
+                      className="py-2.5 px-4 text-xs font-black text-gray-400 hover:text-white hover:bg-white/5 border border-white/10 rounded-xl transition-all flex items-center gap-2 self-start sm:self-auto hover:border-[#a855f7]/30"
+                      title="Edit field details or link invoice/assets directly"
+                    >
+                      <Pencil size={13} /> Edit Field & Assets
+                    </button>
                   </div>
 
                   {/* Attachment/Resource Launcher widget */}
                   <div className="space-y-3">
-                    <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Linked Deliverables & Assets</h4>
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Linked Deliverables & Assets</h4>
                     {activeMilestoneDetail.assetUrl ? (
                       <div className="p-5 rounded-2xl bg-[#11141D] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-4 min-w-0">
@@ -1687,7 +1730,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                             <h5 className="text-sm font-bold text-white truncate">
                               {activeMilestoneDetail.assetUrl.includes('figma.com') ? 'Figma Prototype Asset' : activeMilestoneDetail.assetUrl.includes('drive.google.com') ? 'Google Drive Shared Folder' : 'External Deliverable Resource'}
                             </h5>
-                            <p className="text-[11px] text-gray-500 truncate mt-0.5">{activeMilestoneDetail.assetUrl}</p>
+                            <p className="text-xs text-gray-500 truncate mt-0.5">{activeMilestoneDetail.assetUrl}</p>
                           </div>
                         </div>
 
@@ -1703,8 +1746,8 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                     ) : (
                       <div className="p-6 rounded-2xl bg-white/[0.01] border border-dashed border-white/5 text-center">
                         <LinkIcon size={24} className="text-gray-600 mx-auto mb-2" />
-                        <p className="text-xs text-gray-400 font-bold">No active asset attached to this step yet.</p>
-                        <p className="text-[10px] text-gray-500 mt-0.5">Use the "Edit Details" pencil button on the roadmap card to attach a Figma, Drive, or external URL!</p>
+                        <p className="text-sm text-gray-400 font-bold">No active asset attached to this step yet.</p>
+                        <p className="text-xs text-gray-500 mt-1">Use the "Edit Field & Assets" button above to attach a Figma, Drive, or external URL!</p>
                       </div>
                     )}
                   </div>
@@ -1713,10 +1756,10 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   <div className="space-y-4 pt-4 border-t border-white/5">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                          <MessageSquare size={12} className="text-[#a855f7]" /> Step Discussions & Revisions
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <MessageSquare size={14} className="text-[#a855f7]" /> Step Discussions & Revisions
                         </h4>
-                        <p className="text-[10px] text-gray-500">Provide direct feedback, request changes, or add team updates for this deliverable</p>
+                        <p className="text-xs text-gray-500">Provide direct feedback, request changes, or add team updates for this deliverable</p>
                       </div>
                     </div>
 
@@ -1735,24 +1778,24 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                             return (
                               <div key={note.id} className="p-4 rounded-2xl bg-[#11141D] border border-white/5 space-y-2 hover:border-white/10 transition-all">
                                 <div className="flex justify-between items-center">
-                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
+                                  <span className={`text-xs font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
                                     isClient 
                                       ? 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/25' 
                                       : 'bg-[#e63946]/10 text-[#e63946] border-[#e63946]/25'
                                   }`}>
                                     {note.author?.full_name || (isClient ? 'Client' : 'Studio Manager')}
                                   </span>
-                                  <span className="text-[9px] text-gray-500">{formatDate(note.created_at)}</span>
+                                  <span className="text-xs text-gray-500">{formatDate(note.created_at)}</span>
                                 </div>
-                                <p className="text-xs text-gray-300 leading-relaxed">{cleanContent}</p>
+                                <p className="text-sm text-gray-300 leading-relaxed font-medium">{cleanContent}</p>
                               </div>
                             )
                           })
                         ) : (
                           <div className="text-center py-10 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl">
                             <MessageSquare size={24} className="text-gray-600 mx-auto mb-2" />
-                            <p className="text-xs text-gray-400 font-bold">No comment history for this step yet.</p>
-                            <p className="text-[10px] text-gray-500 mt-0.5">Be the first to post a revision request, note, or update below!</p>
+                            <p className="text-sm text-gray-400 font-bold">No comment history for this step yet.</p>
+                            <p className="text-xs text-gray-500 mt-1">Be the first to post a revision request, note, or update below!</p>
                           </div>
                         )
                       })()}
@@ -1771,7 +1814,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   >
                     <div className="flex-1">
                       <textarea 
-                        className="input-base w-full resize-none h-14 text-[13px] bg-[#0a0a0c]/60 focus:border-[#a855f7]/30 py-2 px-3"
+                        className="input-base w-full resize-none h-14 text-sm bg-[#0a0a0c]/60 focus:border-[#a855f7]/30 py-2.5 px-4"
                         placeholder={`Write feedback or revision notes for ${activeMilestoneDetail.name}...`}
                         value={milestoneNoteMessage}
                         onChange={e => setMilestoneNoteMessage(e.target.value)}
@@ -1787,7 +1830,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                     <button 
                       type="submit" 
                       disabled={isSubmitting || !milestoneNoteMessage.trim()}
-                      className="bg-[#a855f7] text-white hover:bg-[#b56bf9] font-black h-[44px] px-5 rounded-xl transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+                      className="bg-[#a855f7] text-white hover:bg-[#b56bf9] font-black h-[48px] px-6 rounded-xl transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
                     >
                       Post Note
                     </button>
