@@ -226,14 +226,19 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         
         {/* Header */}
         <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-[rgba(255,255,255,0.04)]">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs font-black tracking-widest text-[#a855f7] uppercase">
-              <Sparkles size={12} /> Prayush Studios Hub
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 p-2 flex items-center justify-center flex-shrink-0">
+              <img src="/logo.png" alt="Prayush Studios Logo" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-white via-gray-100 to-gray-500 bg-clip-text text-transparent">
-              Welcome, {data.client.name.split(' ')[0]}
-            </h1>
-            <p className="text-gray-400 text-sm">{data.client.company} Portal</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-black tracking-widest text-[#a855f7] uppercase">
+                <Sparkles size={12} /> Prayush Studios Hub
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-white via-gray-100 to-gray-500 bg-clip-text text-transparent">
+                Welcome, {data.client.name.split(' ')[0]}
+              </h1>
+              <p className="text-gray-400 text-sm">{data.client.company} Portal</p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">

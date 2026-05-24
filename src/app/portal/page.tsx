@@ -42,9 +42,9 @@ export default function PortalGatewayPage() {
         {/* Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-64 h-32 bg-[#e63946] opacity-[0.06] rounded-full blur-3xl pointer-events-none" />
 
-        {/* Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-[rgba(230,57,70,0.1)] border border-[rgba(230,57,70,0.2)] flex items-center justify-center mx-auto mb-6 text-[#e63946]">
-          <Globe size={28} />
+        {/* Logo Icon */}
+        <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 p-3 flex items-center justify-center mx-auto mb-6">
+          <img src="/logo.png" alt="Prayush Studios Logo" className="w-full h-full object-contain" />
         </div>
 
         <h1 className="text-2xl font-bold text-white mb-2">Client Portal Access</h1>
