@@ -46,6 +46,9 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     description: activeProject?.description || '',
     status: activeProject?.status || 'planning',
     progress: activeProject?.progress || 0,
+    fee: activeProject?.payments?.[0]?.total_amount?.toString() || '',
+    advance_paid: activeProject?.payments?.[0]?.advance_paid?.toString() || '',
+    invoice_url: activeProject?.payments?.[0]?.invoice_url || '',
     portal_welcome_title: activeProject?.portal_welcome_title || 'Welcome to your project portal!',
     portal_welcome_message: activeProject?.portal_welcome_message || 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.',
     portal_current_phase: activeProject?.portal_current_phase || 'Design & Development',
@@ -149,6 +152,58 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     if (error) {
       toast.error('Failed to update project: ' + error.message)
     } else {
+      // Sync payment details if fee or advance is specified
+      let updatedPayments = activeProject.payments || []
+      if (editForm.fee) {
+        const feeVal = parseFloat(editForm.fee) || 0
+        const advanceVal = parseFloat(editForm.advance_paid) || 0
+        const balanceVal = feeVal - advanceVal
+        const statusVal = balanceVal <= 0 ? 'paid' : (advanceVal > 0 ? 'partial' : 'pending')
+        const invoiceUrlVal = editForm.invoice_url.trim() || null
+
+        const { data: existingPayment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('project_id', activeProject.id)
+          .maybeSingle()
+
+        if (existingPayment) {
+          const { data: updatedPay, error: payError } = await supabase
+            .from('payments')
+            .update({ 
+              total_amount: feeVal,
+              advance_paid: advanceVal,
+              balance: balanceVal,
+              status: statusVal,
+              invoice_url: invoiceUrlVal
+            })
+            .eq('id', existingPayment.id)
+            .select()
+            .maybeSingle()
+          
+          if (!payError && updatedPay) {
+            updatedPayments = [updatedPay]
+          }
+        } else {
+          const { data: insertedPay, error: payError } = await supabase
+            .from('payments')
+            .insert([{
+              project_id: activeProject.id,
+              total_amount: feeVal,
+              advance_paid: advanceVal,
+              balance: balanceVal,
+              status: statusVal,
+              invoice_url: invoiceUrlVal
+            }])
+            .select()
+            .maybeSingle()
+          
+          if (!payError && insertedPay) {
+            updatedPayments = [insertedPay]
+          }
+        }
+      }
+
       toast.success('Project details updated successfully!')
       
       // Update local state statefully
@@ -157,6 +212,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         projects: prev.projects.map(p => p.id === activeProject.id ? {
           ...p,
           ...editForm,
+          payments: updatedPayments,
           status: editForm.status as ProjectStatus,
           progress: Number(editForm.progress)
         } : p)
@@ -329,6 +385,9 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
       description: activeProject.description || '',
       status: activeProject.status,
       progress: activeProject.progress,
+      fee: activeProject.payments?.[0]?.total_amount?.toString() || '',
+      advance_paid: activeProject.payments?.[0]?.advance_paid?.toString() || '',
+      invoice_url: activeProject.payments?.[0]?.invoice_url || '',
       portal_welcome_title: activeProject.portal_welcome_title || 'Welcome to your project portal!',
       portal_welcome_message: activeProject.portal_welcome_message || 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.',
       portal_current_phase: activeProject.portal_current_phase || 'Design & Development',
@@ -940,6 +999,45 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                           placeholder="Describe the project scope..."
                           value={editForm.description} 
                           onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Project Fee (INR)</label>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            step="0.01" 
+                            className="input-base" 
+                            placeholder="E.g., 50000"
+                            value={editForm.fee} 
+                            onChange={e => setEditForm(f => ({ ...f, fee: e.target.value }))}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Advance Paid (INR)</label>
+                          <input 
+                            type="number" 
+                            min="0" 
+                            step="0.01" 
+                            className="input-base" 
+                            placeholder="E.g., 20000"
+                            value={editForm.advance_paid} 
+                            onChange={e => setEditForm(f => ({ ...f, advance_paid: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Invoice / Asset Link URL</label>
+                        <input 
+                          type="url" 
+                          className="input-base" 
+                          placeholder="https://drive.google.com/..."
+                          value={editForm.invoice_url} 
+                          onChange={e => setEditForm(f => ({ ...f, invoice_url: e.target.value }))}
                         />
                       </div>
                     </div>

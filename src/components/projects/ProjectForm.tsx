@@ -21,6 +21,14 @@ interface ProjectFormProps {
 export function ProjectForm({ clients, initialData, onClose, onCreated }: ProjectFormProps) {
   const [loading, setLoading] = useState(false)
   const isEditing = !!initialData
+  const getPaymentVal = (field: string) => {
+    if (!initialData?.payment) return ''
+    if (Array.isArray(initialData.payment)) {
+      return initialData.payment[0]?.[field]?.toString() || ''
+    }
+    return initialData.payment[field]?.toString() || ''
+  }
+
   const [form, setForm] = useState({
     name: initialData?.name || '',
     client_id: initialData?.client_id || '',
@@ -29,7 +37,9 @@ export function ProjectForm({ clients, initialData, onClose, onCreated }: Projec
     priority: initialData?.priority || 'medium',
     due_date: initialData?.due_date ? new Date(initialData.due_date).toISOString().split('T')[0] : '',
     progress: initialData?.progress || 0,
-    fee: initialData?.payment?.total_amount?.toString() || '',
+    fee: getPaymentVal('total_amount'),
+    advance_paid: getPaymentVal('advance_paid'),
+    invoice_url: getPaymentVal('invoice_url'),
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,9 +76,14 @@ export function ProjectForm({ clients, initialData, onClose, onCreated }: Projec
       projectId = data.id
     }
 
-    // Handle payments total_amount (Project Fee) sync
+    // Handle payments sync (fee, advance paid, balance, status, invoice_url)
     if (form.fee) {
-      const feeVal = parseFloat(form.fee)
+      const feeVal = parseFloat(form.fee) || 0
+      const advanceVal = parseFloat(form.advance_paid) || 0
+      const balanceVal = feeVal - advanceVal
+      const statusVal = balanceVal <= 0 ? 'paid' : (advanceVal > 0 ? 'partial' : 'pending')
+      const invoiceUrlVal = form.invoice_url.trim() || null
+
       const { data: existingPayment } = await supabase
         .from('payments')
         .select('*')
@@ -76,25 +91,29 @@ export function ProjectForm({ clients, initialData, onClose, onCreated }: Projec
         .maybeSingle()
 
       if (existingPayment) {
-        const newStatus = (existingPayment.advance_paid ?? 0) >= feeVal ? 'paid' : 'partial'
         const { error } = await supabase
           .from('payments')
           .update({ 
             total_amount: feeVal,
-            status: newStatus
+            advance_paid: advanceVal,
+            balance: balanceVal,
+            status: statusVal,
+            invoice_url: invoiceUrlVal
           })
           .eq('id', existingPayment.id)
-        if (error) console.error('Failed to sync project fee to payments:', error.message)
+        if (error) console.error('Failed to sync payment info:', error.message)
       } else {
         const { error } = await supabase
           .from('payments')
           .insert([{
             project_id: projectId,
             total_amount: feeVal,
-            advance_paid: 0,
-            status: 'pending'
+            advance_paid: advanceVal,
+            balance: balanceVal,
+            status: statusVal,
+            invoice_url: invoiceUrlVal
           }])
-        if (error) console.error('Failed to initialize project fee in payments:', error.message)
+        if (error) console.error('Failed to initialize payment info:', error.message)
       }
     }
 
@@ -145,6 +164,29 @@ export function ProjectForm({ clients, initialData, onClose, onCreated }: Projec
                 placeholder="e.g. 50000" 
                 required
                 {...field('fee')} 
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Advance Paid (INR)</label>
+              <input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                className="input-base" 
+                placeholder="e.g. 20000" 
+                {...field('advance_paid')} 
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Invoice / Asset Link URL</label>
+              <input 
+                type="url" 
+                className="input-base" 
+                placeholder="https://drive.google.com/..." 
+                {...field('invoice_url')} 
               />
             </div>
           </div>
