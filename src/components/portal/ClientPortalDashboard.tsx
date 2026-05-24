@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PortalData, ProjectStatus, Priority, FileType, Note } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -114,6 +114,19 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     })
     setShowMilestoneDetailsModal(true)
   }
+
+  // Scroll lock when any modal is open to prevent double scroll glitches
+  useEffect(() => {
+    const isModalOpen = showEditProjectModal || showAddAssetModal || showEditMilestoneModal || showMilestoneDetailsModal;
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showEditProjectModal, showAddAssetModal, showEditMilestoneModal, showMilestoneDetailsModal]);
 
   const [milestoneNoteMessage, setMilestoneNoteMessage] = useState('')
 
@@ -663,7 +676,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         </header>
 
         {activeProject ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
