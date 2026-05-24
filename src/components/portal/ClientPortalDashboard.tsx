@@ -71,6 +71,93 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     type: 'url' as FileType
   })
 
+  // Milestone / Field Edit states
+  const [showEditMilestoneModal, setShowEditMilestoneModal] = useState(false)
+  const [selectedMilestone, setSelectedMilestone] = useState<{
+    pIdx: number
+    iIdx: number
+    name: string
+    tag: string
+    assetUrl: string
+  } | null>(null)
+
+  const openEditMilestoneModal = (pIdx: number, iIdx: number, item: { name: string; tag: string; assetUrl: string }) => {
+    setSelectedMilestone({
+      pIdx,
+      iIdx,
+      name: item.name,
+      tag: item.tag,
+      assetUrl: item.assetUrl || ''
+    })
+    setShowEditMilestoneModal(true)
+  }
+
+  const handleEditMilestoneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedMilestone || !activeProject) return
+
+    setIsSubmitting(true)
+    const supabase = createClient()
+
+    // Parse current roadmap phases
+    const defaultRoadmap = 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 15 May,Site management guide,Invoice & payment,Ongoing support'
+    const roadmapStr = activeProject.portal_roadmap || defaultRoadmap
+
+    const phases = roadmapStr.split(';').map((phaseStr, pIdx) => {
+      const parts = phaseStr.split('|')
+      const titlePart = parts[0] || ''
+      const descPart = parts[1] || ''
+      const itemsPart = parts[2] || ''
+
+      const items = itemsPart.split(',').map((item, iIdx) => {
+        if (pIdx === selectedMilestone.pIdx && iIdx === selectedMilestone.iIdx) {
+          // Re-serialize with new name, tag, and assetUrl
+          let res = selectedMilestone.name.trim().replace(/[,|;^]/g, '')
+          
+          const cleanTag = selectedMilestone.tag.trim().replace(/[,|;^]/g, '')
+          if (cleanTag) {
+            res += ` - ${cleanTag}`
+          }
+          
+          const cleanUrl = selectedMilestone.assetUrl.trim().replace(/[,|;]/g, '')
+          if (cleanUrl) {
+            res += `^${cleanUrl}`
+          }
+          return res
+        }
+        return item
+      })
+
+      return `${titlePart}|${descPart}|${items.join(',')}`
+    })
+
+    const newRoadmapStr = phases.join(';')
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ portal_roadmap: newRoadmapStr })
+      .eq('id', activeProject.id)
+
+    if (error) {
+      toast.error('Failed to update milestone: ' + error.message)
+    } else {
+      toast.success('Milestone updated successfully!')
+      
+      // Update local state statefully
+      setData(prev => ({
+        ...prev,
+        projects: prev.projects.map(p => p.id === activeProject.id ? {
+          ...p,
+          portal_roadmap: newRoadmapStr
+        } : p)
+      }))
+
+      setShowEditMilestoneModal(false)
+      setSelectedMilestone(null)
+    }
+    setIsSubmitting(false)
+  }
+
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
       case 'completed': return 'text-[#10b981] border-[#10b981]/20 bg-[#10b981]/5'
@@ -569,10 +656,20 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                         const itemsPart = parts[2] || ''
                         
                         const items = itemsPart.split(',').map(item => {
-                          const subparts = item.split(' - ')
+                          let rawNameAndTag = item
+                          let assetUrl = ''
+                          
+                          if (item.includes('^')) {
+                            const parts = item.split('^')
+                            rawNameAndTag = parts[0] || ''
+                            assetUrl = parts[1] || ''
+                          }
+
+                          const subparts = rawNameAndTag.split(' - ')
                           const name = subparts[0] || ''
                           const tag = subparts[1] || ''
-                          return { name, tag }
+
+                          return { name, tag, assetUrl }
                         })
 
                         return {
@@ -622,27 +719,55 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                     const isPending = item.tag.toLowerCase().includes('pending');
                                     const isDone = !isPending && (pIdx === 0 || iIdx < 2);
                                     return (
-                                      <div key={iIdx} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                                        {isDone ? (
-                                          <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                                        ) : (
-                                          <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                                        )}
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex justify-between items-start gap-2">
-                                            <h5 className="text-[13px] font-bold text-white truncate">{item.name}</h5>
-                                            {item.tag && (
-                                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                                                isPending 
-                                                  ? 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/20 animate-pulse'
-                                                  : 'bg-white/5 text-gray-400 border-white/5'
-                                              }`}>
-                                                {item.tag}
-                                              </span>
-                                            )}
+                                      <div key={iIdx} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col justify-between hover:bg-white/[0.04] transition-all group">
+                                        <div className="flex items-start gap-3 w-full">
+                                          {isDone ? (
+                                            <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                                          ) : (
+                                            <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                                          )}
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-start gap-2">
+                                              <h5 className="text-[13px] font-bold text-white truncate">{item.name}</h5>
+                                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                {item.tag && (
+                                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                                                    isPending 
+                                                      ? 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/20 animate-pulse'
+                                                      : 'bg-white/5 text-gray-400 border-white/5'
+                                                  }`}>
+                                                    {item.tag}
+                                                  </span>
+                                                )}
+                                                <button 
+                                                  type="button"
+                                                  onClick={() => openEditMilestoneModal(pIdx, iIdx, item)}
+                                                  className="p-1 text-gray-500 hover:text-[#a855f7] hover:bg-white/5 rounded transition-all opacity-0 group-hover:opacity-100"
+                                                  title="Edit Field & Assets"
+                                                >
+                                                  <Pencil size={11} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-gray-500 mt-0.5">Track deliverables and customize attachments for {item.name}.</p>
                                           </div>
-                                          <p className="text-xs text-gray-500 mt-0.5">Estimated milestones and resources for {item.name}.</p>
                                         </div>
+                                        
+                                        {item.assetUrl && (
+                                          <div className="mt-3 pt-2.5 border-t border-white/5 w-full flex justify-between items-center">
+                                            <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                                              {item.assetUrl.includes('figma.com') ? 'Figma Asset' : item.assetUrl.includes('drive.google.com') ? 'Drive Folder' : 'External Deliverable'}
+                                            </span>
+                                            <a 
+                                              href={item.assetUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#a855f7] hover:text-white transition-all"
+                                            >
+                                              Open Asset <ExternalLink size={10} />
+                                            </a>
+                                          </div>
+                                        )}
                                       </div>
                                     )
                                   })}
@@ -1236,6 +1361,76 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   <button type="button" onClick={() => setShowAddAssetModal(false)} className="btn-ghost text-xs">Cancel</button>
                   <button type="submit" disabled={isSubmitting} className="btn-primary text-xs">
                     {isSubmitting ? 'Uploading...' : 'Add Asset'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Milestone Details Modal */}
+      <AnimatePresence>
+        {showEditMilestoneModal && selectedMilestone && (
+          <div className="modal-overlay" onClick={() => setShowEditMilestoneModal(false)}>
+            <motion.div 
+              className="modal-content"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.97 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="space-y-0.5">
+                  <h2 className="text-[15px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                    <Pencil size={14} className="text-[#a855f7]" /> Edit Field & Assets
+                  </h2>
+                  <p className="text-[10px] text-gray-500">Add asset links and update field tags for roadmap milestone</p>
+                </div>
+                <button onClick={() => setShowEditMilestoneModal(false)} className="text-[#555] hover:text-white transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditMilestoneSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Milestone / Field Name *</label>
+                  <input 
+                    type="text" 
+                    className="input-base" 
+                    required 
+                    value={selectedMilestone.name} 
+                    onChange={e => setSelectedMilestone(m => m ? { ...m, name: e.target.value } : null)}
+                    placeholder="E.g., Brand guidelines or Invoice & payment"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Status / Progress Tag</label>
+                  <input 
+                    type="text" 
+                    className="input-base" 
+                    value={selectedMilestone.tag} 
+                    onChange={e => setSelectedMilestone(m => m ? { ...m, tag: e.target.value } : null)}
+                    placeholder="E.g., Completed, 1 pending, 2 keys, 15 Mar"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Asset / Deliverable Link URL</label>
+                  <input 
+                    type="url" 
+                    className="input-base" 
+                    value={selectedMilestone.assetUrl} 
+                    onChange={e => setSelectedMilestone(m => m ? { ...m, assetUrl: e.target.value } : null)}
+                    placeholder="E.g., Figma link, Google Drive link, or PDF Invoice URL"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setShowEditMilestoneModal(false)} className="btn-ghost text-xs">Cancel</button>
+                  <button type="submit" disabled={isSubmitting} className="btn-primary text-xs">
+                    {isSubmitting ? 'Saving...' : 'Save Milestone / Field'}
                   </button>
                 </div>
               </form>
