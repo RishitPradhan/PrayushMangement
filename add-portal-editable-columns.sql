@@ -1,0 +1,9 @@
+-- Add portal customization columns to projects table
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_welcome_title TEXT DEFAULT 'Welcome to your project portal!';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_welcome_message TEXT DEFAULT 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_current_phase TEXT DEFAULT 'Design & Development';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_next_phase TEXT DEFAULT 'Launch & Handoff';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_pm_name TEXT DEFAULT 'Sarah';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_pm_email TEXT DEFAULT 'sarah@polymark.com';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_quick_start TEXT DEFAULT 'Read through the Getting Started guide in Phase 1 below;Upload your brand assets so we can hit the ground running;Book your kickoff call using the scheduling link in Phase 1;Check back anytime to track progress and review deliverables';
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS portal_roadmap TEXT DEFAULT 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 1 May,Site management guide,Invoice & payment,Ongoing support';

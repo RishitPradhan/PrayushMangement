@@ -62,6 +62,17 @@ export interface PortalData {
     files: ProjectFile[];
     payments: Payment[];
     tasks: { id: string; title: string; status: TaskStatus; priority: Priority; due_date?: string }[];
+    notes?: Note[];
+    
+    // Optional customized portal attributes
+    portal_welcome_title?: string;
+    portal_welcome_message?: string;
+    portal_current_phase?: string;
+    portal_next_phase?: string;
+    portal_pm_name?: string;
+    portal_pm_email?: string;
+    portal_quick_start?: string;
+    portal_roadmap?: string;
   }[];
 }
 
@@ -83,6 +94,17 @@ export interface Project {
   members?: Profile[];
   tasks?: Task[];
   payment?: Payment;
+  notes?: Note[];
+  
+  // Optional customized portal attributes
+  portal_welcome_title?: string;
+  portal_welcome_message?: string;
+  portal_current_phase?: string;
+  portal_next_phase?: string;
+  portal_pm_name?: string;
+  portal_pm_email?: string;
+  portal_quick_start?: string;
+  portal_roadmap?: string;
 }
 
 // --------------------------------

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { PortalData, ProjectStatus, Priority, FileType } from '@/types'
+import { PortalData, ProjectStatus, Priority, FileType, Note } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -35,6 +35,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
 
   // Modals state
   const [showEditProjectModal, setShowEditProjectModal] = useState(false)
+  const [activeEditTab, setActiveEditTab] = useState('basic')
   const [showAddAssetModal, setShowAddAssetModal] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(false)
 
@@ -44,8 +45,20 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     name: activeProject?.name || '',
     description: activeProject?.description || '',
     status: activeProject?.status || 'planning',
-    progress: activeProject?.progress || 0
+    progress: activeProject?.progress || 0,
+    portal_welcome_title: activeProject?.portal_welcome_title || 'Welcome to your project portal!',
+    portal_welcome_message: activeProject?.portal_welcome_message || 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.',
+    portal_current_phase: activeProject?.portal_current_phase || 'Design & Development',
+    portal_next_phase: activeProject?.portal_next_phase || 'Launch & Handoff',
+    portal_pm_name: activeProject?.portal_pm_name || 'Sarah',
+    portal_pm_email: activeProject?.portal_pm_email || 'sarah@polymark.com',
+    portal_quick_start: activeProject?.portal_quick_start || 'Read through the Getting Started guide in Phase 1 below;Upload your brand assets so we can hit the ground running;Book your kickoff call using the scheduling link in Phase 1;Check back anytime to track progress and review deliverables',
+    portal_roadmap: activeProject?.portal_roadmap || 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 1 May,Site management guide,Invoice & payment,Ongoing support'
   })
+
+  // Client Note state
+  const [clientNoteMessage, setClientNoteMessage] = useState('')
+
 
   // Add Asset state
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -95,15 +108,43 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     setIsSubmitting(true)
     const supabase = createClient()
 
-    const { error } = await supabase
+    // Try updating all columns including the portal welcome titles and custom roadmaps
+    const updatePayload: any = {
+      name: editForm.name,
+      description: editForm.description,
+      status: editForm.status,
+      progress: Number(editForm.progress),
+      portal_welcome_title: editForm.portal_welcome_title,
+      portal_welcome_message: editForm.portal_welcome_message,
+      portal_current_phase: editForm.portal_current_phase,
+      portal_next_phase: editForm.portal_next_phase,
+      portal_pm_name: editForm.portal_pm_name,
+      portal_pm_email: editForm.portal_pm_email,
+      portal_quick_start: editForm.portal_quick_start,
+      portal_roadmap: editForm.portal_roadmap
+    }
+
+    let { error } = await supabase
       .from('projects')
-      .update({
-        name: editForm.name,
-        description: editForm.description,
-        status: editForm.status,
-        progress: Number(editForm.progress)
-      })
+      .update(updatePayload)
       .eq('id', activeProject.id)
+
+    if (error) {
+      console.warn('Expanded portal columns not present in DB yet, falling back to basic details update:', error)
+      
+      // Fallback update to standard fields
+      const { error: fallbackError } = await supabase
+        .from('projects')
+        .update({
+          name: editForm.name,
+          description: editForm.description,
+          status: editForm.status,
+          progress: Number(editForm.progress)
+        })
+        .eq('id', activeProject.id)
+
+      error = fallbackError
+    }
 
     if (error) {
       toast.error('Failed to update project: ' + error.message)
@@ -115,14 +156,82 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         ...prev,
         projects: prev.projects.map(p => p.id === activeProject.id ? {
           ...p,
-          name: editForm.name,
-          description: editForm.description,
+          ...editForm,
           status: editForm.status as ProjectStatus,
           progress: Number(editForm.progress)
         } : p)
       }))
 
       setShowEditProjectModal(false)
+    }
+    setIsSubmitting(false)
+  }
+
+  // Handle client note submission inside discussion feed
+  const handleClientNoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!clientNoteMessage.trim() || !activeProject) return
+
+    setIsSubmitting(true)
+    const supabase = createClient()
+
+    // Call secure RPC to insert client note
+    const { data: insertedNote, error } = await supabase.rpc('add_portal_note', {
+      p_token: token,
+      p_project_id: activeProject.id,
+      p_content: clientNoteMessage.trim()
+    })
+
+    if (error) {
+      // Fallback if RPC doesn't exist yet: use submit_portal_revision
+      console.warn('add_portal_note RPC not found, falling back to submit_portal_revision:', error)
+      const { data: fallbackSuccess, error: fallbackError } = await supabase.rpc('submit_portal_revision', {
+        p_token: token,
+        p_project_id: activeProject.id,
+        p_message: 'Discussion Note: ' + clientNoteMessage.trim()
+      })
+
+      if (fallbackError) {
+        toast.error('Failed to post note: ' + fallbackError.message)
+      } else {
+        toast.success('Note posted successfully!')
+        
+        // Push a local mockup note to the UI feed so they see it instantly!
+        const mockNote: Note = {
+          id: Math.random().toString(),
+          author_id: '',
+          entity_id: activeProject.id,
+          entity_type: 'project',
+          content: 'Discussion Note: ' + clientNoteMessage.trim(),
+          created_at: new Date().toISOString(),
+          author: {
+            id: '',
+            email: data.client.email,
+            full_name: data.client.name + ' (Client)',
+            role: 'member',
+            created_at: new Date().toISOString()
+          }
+        }
+
+        setData(prev => ({
+          ...prev,
+          projects: prev.projects.map(p => p.id === activeProject.id ? {
+            ...p,
+            notes: [mockNote, ...(p.notes || [])]
+          } : p)
+        }))
+        setClientNoteMessage('')
+      }
+    } else if (insertedNote) {
+      toast.success('Note posted successfully!')
+      setData(prev => ({
+        ...prev,
+        projects: prev.projects.map(p => p.id === activeProject.id ? {
+          ...p,
+          notes: [insertedNote, ...(p.notes || [])]
+        } : p)
+      }))
+      setClientNoteMessage('')
     }
     setIsSubmitting(false)
   }
@@ -217,9 +326,17 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
   const openEditModal = () => {
     setEditForm({
       name: activeProject.name,
-      description: activeProject.description,
+      description: activeProject.description || '',
       status: activeProject.status,
-      progress: activeProject.progress
+      progress: activeProject.progress,
+      portal_welcome_title: activeProject.portal_welcome_title || 'Welcome to your project portal!',
+      portal_welcome_message: activeProject.portal_welcome_message || 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.',
+      portal_current_phase: activeProject.portal_current_phase || 'Design & Development',
+      portal_next_phase: activeProject.portal_next_phase || 'Launch & Handoff',
+      portal_pm_name: activeProject.portal_pm_name || 'Sarah',
+      portal_pm_email: activeProject.portal_pm_email || 'sarah@polymark.com',
+      portal_quick_start: activeProject.portal_quick_start || 'Read through the Getting Started guide in Phase 1 below;Upload your brand assets so we can hit the ground running;Book your kickoff call using the scheduling link in Phase 1;Check back anytime to track progress and review deliverables',
+      portal_roadmap: activeProject.portal_roadmap || 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 15 May,Site management guide,Invoice & payment,Ongoing support'
     })
     setShowEditProjectModal(true)
   }
@@ -271,8 +388,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
             
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
-              
-              {/* 1. Welcome Onboarding Card */}
+                     {/* 1. Welcome Onboarding Card */}
               <section className="glass-card p-6 sm:p-8 relative overflow-hidden group hover:border-[rgba(168,85,247,0.15)] transition-all duration-300">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#a855f7] opacity-[0.02] rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
                 
@@ -293,10 +409,10 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   
                   <div className="space-y-3">
                     <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                      Welcome to your project portal!
+                      {activeProject.portal_welcome_title || 'Welcome to your project portal!'}
                     </h2>
                     <p className="text-gray-400 text-sm leading-relaxed max-w-2xl">
-                      This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.
+                      {activeProject.portal_welcome_message || 'This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.'}
                     </p>
                   </div>
 
@@ -331,22 +447,12 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                         <span className="w-1.5 h-1.5 rounded-full bg-[#e63946]" /> Quick start
                       </h4>
                       <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#e63946] font-bold">1</span>
-                          <span>Read through the Getting Started guide in Phase 1 below</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#e63946] font-bold">2</span>
-                          <span>Upload your brand assets so we can hit the ground running</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#e63946] font-bold">3</span>
-                          <span>Book your kickoff call using the scheduling link in Phase 1</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <span className="text-[#e63946] font-bold">4</span>
-                          <span>Check back anytime to track progress and review deliverables</span>
-                        </li>
+                        {(activeProject.portal_quick_start || 'Read through the Getting Started guide in Phase 1 below;Upload your brand assets so we can hit the ground running;Book your kickoff call using the scheduling link in Phase 1;Check back anytime to track progress and review deliverables').split(';').map((qs, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-[#e63946] font-bold">{i + 1}</span>
+                            <span>{qs.trim()}</span>
+                          </li>
+                        ))}
                       </ul>
                     </div>
                   </div>
@@ -354,7 +460,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3">
                     <Info size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-gray-400 leading-relaxed">
-                      If you have any questions or need help navigating your portal, don’t hesitate to reach out to your project manager <strong>Sarah</strong> at <a href="mailto:sarah@polymark.com" className="text-[#a855f7] hover:underline font-bold">sarah@polymark.com</a>.
+                      If you have any questions or need help navigating your portal, don’t hesitate to reach out to your project manager <strong>{activeProject.portal_pm_name || 'Sarah'}</strong> at <a href={`mailto:${activeProject.portal_pm_email || 'sarah@polymark.com'}`} className="text-[#a855f7] hover:underline font-bold">{activeProject.portal_pm_email || 'sarah@polymark.com'}</a>.
                     </p>
                   </div>
                 </div>
@@ -365,13 +471,13 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
                   <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Current Phase</div>
                   <div className="text-sm font-extrabold text-[#a855f7] tracking-wide flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] animate-pulse" /> Design & Development
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] animate-pulse" /> {activeProject.portal_current_phase || 'Design & Development'}
                   </div>
                 </div>
                 <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
                   <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Next Phase</div>
                   <div className="text-sm font-extrabold text-white tracking-wide">
-                    Launch & Handoff
+                    {activeProject.portal_next_phase || 'Launch & Handoff'}
                   </div>
                 </div>
                 <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
@@ -392,210 +498,103 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 </div>
 
                 <div className="space-y-4">
-                  {/* Phase 1: Discovery */}
-                  <div className="glass-card p-0 overflow-hidden border border-white/5">
-                    <button 
-                      onClick={() => togglePhase('phase1')}
-                      className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase tracking-wider">Phase 1</span>
-                          <h4 className="text-sm font-black text-white">Discovery</h4>
+                  {(() => {
+                    const parseRoadmap = (roadmapStr?: string) => {
+                      const defaultRoadmap = 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 15 May,Site management guide,Invoice & payment,Ongoing support'
+                      const str = roadmapStr || defaultRoadmap
+                      
+                      return str.split(';').map((phaseStr, idx) => {
+                        const parts = phaseStr.split('|')
+                        const titlePart = parts[0] || `Phase ${idx + 1}`
+                        const descPart = parts[1] || ''
+                        const itemsPart = parts[2] || ''
+                        
+                        const items = itemsPart.split(',').map(item => {
+                          const subparts = item.split(' - ')
+                          const name = subparts[0] || ''
+                          const tag = subparts[1] || ''
+                          return { name, tag }
+                        })
+
+                        return {
+                          key: `phase${idx + 1}`,
+                          phaseNum: titlePart.split(':')[0]?.trim() || `Phase ${idx + 1}`,
+                          title: titlePart.split(':')[1]?.trim() || titlePart,
+                          description: descPart,
+                          items
+                        }
+                      })
+                    }
+
+                    const parsedPhases = parseRoadmap(activeProject.portal_roadmap)
+
+                    return parsedPhases.map((phase, pIdx) => {
+                      const isExpanded = expandedPhases[phase.key] !== false;
+                      const badgeColor = pIdx === 0 ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : pIdx === 1 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+                      return (
+                        <div key={phase.key} className="glass-card p-0 overflow-hidden border border-white/5">
+                          <button 
+                            onClick={() => setExpandedPhases(prev => ({ ...prev, [phase.key]: !prev[phase.key] }))}
+                            className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2.5">
+                                <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-wider ${badgeColor}`}>
+                                  {phase.phaseNum}
+                                </span>
+                                <h4 className="text-sm font-black text-white">{phase.title}</h4>
+                              </div>
+                              <p className="text-xs text-gray-400">{phase.description}</p>
+                            </div>
+                            {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                          </button>
+
+                          <AnimatePresence initial={false}>
+                            {isExpanded && (
+                              <motion.div 
+                                initial={{ height: 0 }}
+                                animate={{ height: 'auto' }}
+                                exit={{ height: 0 }}
+                                className="overflow-hidden border-t border-white/5 bg-black/20"
+                              >
+                                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {phase.items.map((item, iIdx) => {
+                                    const isPending = item.tag.toLowerCase().includes('pending');
+                                    const isDone = !isPending && (pIdx === 0 || iIdx < 2);
+                                    return (
+                                      <div key={iIdx} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                                        {isDone ? (
+                                          <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                                        ) : (
+                                          <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex justify-between items-start gap-2">
+                                            <h5 className="text-[13px] font-bold text-white truncate">{item.name}</h5>
+                                            {item.tag && (
+                                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
+                                                isPending 
+                                                  ? 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/20 animate-pulse'
+                                                  : 'bg-white/5 text-gray-400 border-white/5'
+                                              }`}>
+                                                {item.tag}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <p className="text-xs text-gray-500 mt-0.5">Estimated milestones and resources for {item.name}.</p>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        <p className="text-xs text-gray-400">Aligning on your vision, goals, and project scope</p>
-                      </div>
-                      {expandedPhases.phase1 ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                    </button>
-
-                    <AnimatePresence initial={false}>
-                      {expandedPhases.phase1 && (
-                        <motion.div 
-                          initial={{ height: 0 }}
-                          animate={{ height: 'auto' }}
-                          exit={{ height: 0 }}
-                          className="overflow-hidden border-t border-white/5 bg-black/20"
-                        >
-                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                              <div>
-                                <h5 className="text-[13px] font-bold text-white">Getting started</h5>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Your quick-start guide to the project and your portal.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">Kickoff meeting</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">15 Mar</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Let’s align on the project scope and timeline.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                              <div>
-                                <h5 className="text-[13px] font-bold text-white">Brand guidelines</h5>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Your brand identity, colors, and typography.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">Brand assets</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#a855f7]/10 text-[#a855f7] border border-[#a855f7]/20">1 pending</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Upload your logos, fonts, and brand materials.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all md:col-span-2">
-                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">Timeline & milestones</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">21 Mar</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Key dates and deliverables for each phase.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Phase 2: Design & Development */}
-                  <div className="glass-card p-0 overflow-hidden border border-white/5">
-                    <button 
-                      onClick={() => togglePhase('phase2')}
-                      className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider">Phase 2</span>
-                          <h4 className="text-sm font-black text-white">Design & Development</h4>
-                        </div>
-                        <p className="text-xs text-gray-400">Creating, refining, and building your new website</p>
-                      </div>
-                      {expandedPhases.phase2 ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                    </button>
-
-                    <AnimatePresence initial={false}>
-                      {expandedPhases.phase2 && (
-                        <motion.div 
-                          initial={{ height: 0 }}
-                          animate={{ height: 'auto' }}
-                          exit={{ height: 0 }}
-                          className="overflow-hidden border-t border-white/5 bg-black/20"
-                        >
-                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0 animate-pulse" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">Design mockups</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">1 Apr</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Visual concepts for your review and approval.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <h5 className="text-[13px] font-bold text-white">Design inspiration</h5>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Mood board and visual references for your project.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">Feedback & revisions</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-black">4 steps</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Share your feedback and discuss changes with the team.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">SEO foundations</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20">2 keys</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Technical setup and content optimization.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Phase 3: Launch & Handoff */}
-                  <div className="glass-card p-0 overflow-hidden border border-white/5">
-                    <button 
-                      onClick={() => togglePhase('phase3')}
-                      className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2.5">
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider">Phase 3</span>
-                          <h4 className="text-sm font-black text-white">Launch & Handoff</h4>
-                        </div>
-                        <p className="text-xs text-gray-400">Final files, documentation, and everything you need to go live</p>
-                      </div>
-                      {expandedPhases.phase3 ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                    </button>
-
-                    <AnimatePresence initial={false}>
-                      {expandedPhases.phase3 && (
-                        <motion.div 
-                          initial={{ height: 0 }}
-                          animate={{ height: 'auto' }}
-                          exit={{ height: 0 }}
-                          className="overflow-hidden border-t border-white/5 bg-black/20"
-                        >
-                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <div className="flex justify-between items-start gap-2">
-                                  <h5 className="text-[13px] font-bold text-white">Final deliverables</h5>
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">1 May</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Download your completed project files.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <h5 className="text-[13px] font-bold text-white">Site management guide</h5>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Everything you need to manage your new site.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <h5 className="text-[13px] font-bold text-white">Invoice & payment</h5>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Payment details and receipts.</p>
-                              </div>
-                            </div>
-                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
-                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <h5 className="text-[13px] font-bold text-white">Ongoing support</h5>
-                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Your maintenance and support options.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                      )
+                    })
+                  })()}
                 </div>
               </section>
 
@@ -646,6 +645,82 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                     </div>
                   )}
                 </div>
+              </section>
+
+              {/* 5. Discussion & Notes Feed */}
+              <section className="glass-card p-6 sm:p-8 space-y-6">
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <div className="space-y-0.5">
+                    <h3 className="text-lg font-black tracking-tight text-white uppercase flex items-center gap-2">
+                      <MessageSquare size={18} className="text-[#a855f7]" /> Project Discussions
+                    </h3>
+                    <p className="text-xs text-gray-500">Add notes, feedback, and coordinate directly with the studio team</p>
+                  </div>
+                </div>
+
+                {/* Notes Feed container */}
+                <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 scrollbar-custom">
+                  {activeProject.notes && activeProject.notes.length > 0 ? (
+                    [...activeProject.notes].reverse().map((note) => {
+                      const isClient = !note.author_id || note.content.startsWith('[Client') || note.content.startsWith('Discussion Note:');
+                      const cleanContent = note.content
+                        .replace(/^\[Client Note\] /, '')
+                        .replace(/^\[Client Revision\] /, '')
+                        .replace(/^Discussion Note: /, '')
+                        .replace(/^\[Discussion Note\] /, '');
+
+                      return (
+                        <div key={note.id} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex gap-3 hover:bg-white/[0.04] transition-all">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                            isClient ? 'bg-[#a855f7]/10 text-[#a855f7]' : 'bg-[#e63946]/10 text-[#e63946]'
+                          }`}>
+                            {note.author?.full_name ? note.author.full_name[0].toUpperCase() : 'C'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-2 mb-1">
+                              <span className="text-xs font-extrabold text-white">
+                                {note.author?.full_name || `${data.client.name} (Client)`}
+                              </span>
+                              <span className="text-[9.5px] text-gray-500 font-semibold">{formatDate(note.created_at)}</span>
+                            </div>
+                            <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{cleanContent}</p>
+                          </div>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="text-center py-8">
+                      <MessageSquare size={24} className="text-[#333] mx-auto mb-2" />
+                      <p className="text-gray-500 text-xs">No discussion notes yet. Leave a note below to start the conversation!</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Note post form */}
+                <form onSubmit={handleClientNoteSubmit} className="pt-4 border-t border-white/5 flex items-end gap-3">
+                  <div className="flex-1">
+                    <textarea 
+                      className="input-base w-full resize-none h-16 text-[13px] bg-[#0a0a0c]/60 focus:border-[#a855f7]/30"
+                      placeholder="Add a new note to this project..."
+                      value={clientNoteMessage}
+                      onChange={e => setClientNoteMessage(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleClientNoteSubmit(e)
+                        }
+                      }}
+                      required
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting || !clientNoteMessage.trim()}
+                    className="bg-[#a855f7] text-white hover:bg-[#b56bf9] font-black h-[44px] px-5 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    Post Note
+                  </button>
+                </form>
               </section>
 
             </div>
@@ -771,72 +846,214 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         {showEditProjectModal && (
           <div className="modal-overlay" onClick={() => setShowEditProjectModal(false)}>
             <motion.div 
-              className="modal-content"
+              className="modal-content !max-w-2xl"
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.97 }}
               onClick={e => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-[15px] font-semibold text-white">Edit Project Info</h2>
-                <button onClick={() => setShowEditProjectModal(false)} className="text-[#555] hover:text-white">
+              <div className="flex items-center justify-between mb-5 border-b border-white/5 pb-3">
+                <div className="space-y-0.5">
+                  <h2 className="text-[15px] font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                    <Pencil size={14} className="text-[#a855f7]" /> Edit Project Workspace
+                  </h2>
+                  <p className="text-[10px] text-gray-500">Configure portal layout, manager credentials, and milestones</p>
+                </div>
+                <button onClick={() => setShowEditProjectModal(false)} className="text-[#555] hover:text-white transition-colors">
                   <X size={16} />
                 </button>
               </div>
 
-              <form onSubmit={handleEditProjectSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Project Name *</label>
-                  <input 
-                    type="text" 
-                    className="input-base" 
-                    required 
-                    value={editForm.name} 
-                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Project Status</label>
-                  <select 
-                    className="input-base"
-                    value={editForm.status} 
-                    onChange={e => setEditForm(f => ({ ...f, status: e.target.value as ProjectStatus }))}
+              {/* Tab Navigation */}
+              <div className="flex border-b border-white/5 mb-5 overflow-x-auto gap-2">
+                {[
+                  { id: 'basic', label: 'Basic Info' },
+                  { id: 'welcome', label: 'Welcome Copy' },
+                  { id: 'pm', label: 'PM & Phases' },
+                  { id: 'roadmap', label: 'Milestones & Roadmap' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setActiveEditTab(t.id)}
+                    className={`pb-2.5 px-3 text-[11px] font-black uppercase tracking-wider transition-all border-b-2 flex-shrink-0 ${
+                      activeEditTab === t.id 
+                        ? 'border-[#a855f7] text-[#a855f7]' 
+                        : 'border-transparent text-gray-500 hover:text-gray-300'
+                    }`}
                   >
-                    <option value="planning">Planning</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="review">Review</option>
-                    <option value="completed">Completed</option>
-                  </select>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleEditProjectSubmit} className="space-y-4">
+                <div className="max-h-[380px] overflow-y-auto pr-1 scrollbar-custom space-y-4">
+                  {activeEditTab === 'basic' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Project Name *</label>
+                        <input 
+                          type="text" 
+                          className="input-base" 
+                          required 
+                          value={editForm.name} 
+                          onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Project Status</label>
+                          <select 
+                            className="input-base"
+                            value={editForm.status} 
+                            onChange={e => setEditForm(f => ({ ...f, status: e.target.value as ProjectStatus }))}
+                          >
+                            <option value="planning">Planning</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="review">Review</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Progress: {editForm.progress}%</label>
+                          <div className="flex items-center gap-3 mt-2">
+                            <input 
+                              type="range"
+                              min={0}
+                              max={100}
+                              className="flex-1 accent-[#a855f7]"
+                              value={editForm.progress} 
+                              onChange={e => setEditForm(f => ({ ...f, progress: Number(e.target.value) }))}
+                            />
+                            <span className="text-xs font-bold text-[#a855f7] w-8 text-right">{editForm.progress}%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Description</label>
+                        <textarea 
+                          className="input-base resize-none h-24" 
+                          placeholder="Describe the project scope..."
+                          value={editForm.description} 
+                          onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeEditTab === 'welcome' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Portal Welcome Title</label>
+                        <input 
+                          type="text" 
+                          className="input-base" 
+                          placeholder="E.g., Welcome to your project portal!"
+                          value={editForm.portal_welcome_title} 
+                          onChange={e => setEditForm(f => ({ ...f, portal_welcome_title: e.target.value }))}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Portal Welcome Message</label>
+                        <textarea 
+                          className="input-base resize-none h-28" 
+                          placeholder="E.g., This is your central hub for everything related to your website redesign..."
+                          value={editForm.portal_welcome_message} 
+                          onChange={e => setEditForm(f => ({ ...f, portal_welcome_message: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeEditTab === 'pm' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Project Manager Name</label>
+                          <input 
+                            type="text" 
+                            className="input-base" 
+                            placeholder="E.g., Sarah"
+                            value={editForm.portal_pm_name} 
+                            onChange={e => setEditForm(f => ({ ...f, portal_pm_name: e.target.value }))}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Project Manager Email</label>
+                          <input 
+                            type="email" 
+                            className="input-base" 
+                            placeholder="E.g., sarah@polymark.com"
+                            value={editForm.portal_pm_email} 
+                            onChange={e => setEditForm(f => ({ ...f, portal_pm_email: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Current Phase Label</label>
+                          <input 
+                            type="text" 
+                            className="input-base" 
+                            placeholder="E.g., Design & Development"
+                            value={editForm.portal_current_phase} 
+                            onChange={e => setEditForm(f => ({ ...f, portal_current_phase: e.target.value }))}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Next Phase Label</label>
+                          <input 
+                            type="text" 
+                            className="input-base" 
+                            placeholder="E.g., Launch & Handoff"
+                            value={editForm.portal_next_phase} 
+                            onChange={e => setEditForm(f => ({ ...f, portal_next_phase: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeEditTab === 'roadmap' && (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Quick Start Checklist (separate by Semicolon `;`)</label>
+                        <textarea 
+                          className="input-base resize-none h-24" 
+                          placeholder="Read through the Getting Started guide...;Upload your brand assets...;Book your kickoff call..."
+                          value={editForm.portal_quick_start} 
+                          onChange={e => setEditForm(f => ({ ...f, portal_quick_start: e.target.value }))}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Interactive Roadmap (Phase1|Desc|Item1,Item2 - Date;...)</label>
+                        <textarea 
+                          className="input-base resize-none h-28 text-xs font-mono" 
+                          placeholder="Phase 1: Discovery|Aligning on scope|Getting started,Kickoff meeting - 15 Mar;..."
+                          value={editForm.portal_roadmap} 
+                          onChange={e => setEditForm(f => ({ ...f, portal_roadmap: e.target.value }))}
+                        />
+                        <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                          Format: <code>Phase Title | Phase Subtitle | Milestone1 - Tag1, Milestone2 - Tag2 ; Phase 2 Title | ...</code>
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Progress: {editForm.progress}%</label>
-                  <input 
-                    type="range"
-                    min={0}
-                    max={100}
-                    className="w-full accent-[#a855f7]"
-                    value={editForm.progress} 
-                    onChange={e => setEditForm(f => ({ ...f, progress: Number(e.target.value) }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Description</label>
-                  <textarea 
-                    className="input-base resize-none" 
-                    rows={4}
-                    placeholder="Describe the project scope..."
-                    value={editForm.description} 
-                    onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-2">
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
                   <button type="button" onClick={() => setShowEditProjectModal(false)} className="btn-ghost text-xs">Cancel</button>
                   <button type="submit" disabled={isSubmitting} className="btn-primary text-xs">
-                    {isSubmitting ? 'Saving...' : 'Save Details'}
+                    {isSubmitting ? 'Saving...' : 'Save Workspace details'}
                   </button>
                 </div>
               </form>
