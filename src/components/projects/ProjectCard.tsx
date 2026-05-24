@@ -92,22 +92,22 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-2 text-[12px] text-gray-400 font-medium">
-              <Calendar size={13} className="text-gray-500" />
+          <div className="flex items-center justify-between pt-1 gap-2">
+            <div className="flex items-center gap-1.5 text-[12px] text-gray-400 font-medium min-w-0">
+              <Calendar size={13} className="text-gray-500 flex-shrink-0" />
               {project.due_date ? (
-                <span className={isOverdue ? 'text-[#e63946] font-semibold' : ''}>
+                <span className={`truncate ${isOverdue ? 'text-[#e63946] font-semibold' : ''}`}>
                   {isOverdue ? `${Math.abs(daysLeft!)}d overdue` : formatDate(project.due_date)}
                 </span>
               ) : (
-                <span>No deadline</span>
+                <span className="truncate">No deadline</span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <StatusBadge status={project.priority} />
               <ArrowRight
                 size={14}
-                className="text-gray-500 transition-transform"
+                className="text-gray-500 transition-transform flex-shrink-0"
                 style={{ transform: hovered ? 'translateX(3px)' : 'none', transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)' }}
               />
             </div>

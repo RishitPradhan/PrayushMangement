@@ -9,7 +9,7 @@ const pageTitles: Record<string, string> = {
   '/tasks': 'Task Board',
   '/clients': 'Clients',
   '/team': 'Team',
-  '/payments': 'Payments',
+  '/payments': 'Finance & Ledger',
   '/files': 'Files & Links',
   '/notifications': 'Notifications',
   '/portal': 'Client Portal',

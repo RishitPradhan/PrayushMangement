@@ -9,7 +9,7 @@ export default async function ProjectsPage() {
   const [{ data: projects }, { data: clients }] = await Promise.all([
     supabase
       .from('projects')
-      .select('*, client:clients(id, name, company), members:project_members(user:profiles(id, full_name, avatar_url))')
+      .select('*, client:clients(id, name, company), members:project_members(user:profiles(id, full_name, avatar_url)), payment:payments(*)')
       .order('created_at', { ascending: false }),
     supabase.from('clients').select('id, name, company').order('name'),
   ])

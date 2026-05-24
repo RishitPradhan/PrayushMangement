@@ -8,7 +8,7 @@ export default async function ClientsPage() {
   
   const { data: clients } = await supabase
     .from('clients')
-    .select('*, projects(id, status)')
+    .select('*, projects(id, status), portal_token')
     .order('name')
 
   const clientsWithCount = (clients ?? []).map(c => ({

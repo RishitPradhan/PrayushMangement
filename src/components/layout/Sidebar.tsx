@@ -19,7 +19,7 @@ const navItems = [
   { href: '/tasks',         icon: CheckSquare,     label: 'Tasks',       roles: ['admin', 'member'] },
   { href: '/clients',       icon: Building2,       label: 'Clients',     roles: ['admin', 'member'] },
   { href: '/team',          icon: Users,           label: 'Team',        roles: ['admin'] },
-  { href: '/payments',      icon: CreditCard,      label: 'Payments',    roles: ['admin'] },
+  { href: '/payments',      icon: CreditCard,      label: 'Finance',     roles: ['admin'] },
   { href: '/files',         icon: FileText,        label: 'Files',       roles: ['admin', 'member'] },
   { href: '/notifications', icon: Bell,            label: 'Notifications', roles: ['admin', 'member'] },
   { href: '/portal',        icon: Globe,           label: 'Client Portal', roles: ['admin', 'member'] },

@@ -19,16 +19,19 @@ export default async function DashboardPage() {
     { data: tasks },
     { data: activities },
     { data: payments },
+    { data: memberExpensesData }
   ] = await Promise.all([
     supabase.from('projects').select('*, client:clients(name)').order('created_at', { ascending: false }),
     supabase.from('tasks').select('*'),
     supabase.from('activity_log').select('*, user:profiles(full_name, avatar_url)').order('created_at', { ascending: false }).limit(10),
     supabase.from('payments').select('total_amount, advance_paid, balance, status'),
+    supabase.from('expenses').select('amount').eq('user_id', profile?.id || '').eq('category', 'team')
   ])
 
   const allProjects = allProjectsData ?? []
   const allTasks = tasks ?? []
   const allPayments = payments ?? []
+  const memberExpenses = memberExpensesData ?? []
 
   // Calculate projects started this month
   const startOfMonth = new Date()
@@ -36,14 +39,19 @@ export default async function DashboardPage() {
   startOfMonth.setHours(0, 0, 0, 0)
   const projectsStartedThisMonth = allProjects.filter(p => p.created_at && new Date(p.created_at) >= startOfMonth).length
 
+  // Calculate revenue metrics
+  const totalRevenue = allPayments.reduce((sum, p) => sum + (p.advance_paid ?? 0), 0)
+  const myEarnings = memberExpenses.reduce((sum, e) => sum + Number(e.amount), 0)
+
   const stats: DashboardStats = {
     activeProjects: allProjects.filter(p => p.status !== 'completed').length,
     pendingTasks: allTasks.filter(t => t.status !== 'completed').length,
     completedTasks: allTasks.filter(t => t.status === 'completed').length,
     overdueItems: allProjects.filter(p => p.due_date && new Date(p.due_date) < new Date() && p.status !== 'completed').length,
-    totalRevenue: allPayments.reduce((sum, p) => sum + (p.advance_paid ?? 0), 0),
+    totalRevenue,
     pendingPayments: allPayments.reduce((sum, p) => sum + (p.balance ?? 0), 0),
     projectsStartedThisMonth,
+    myEarnings,
   }
 
   // Generate dynamic chart data based on real projects over the last 6 months

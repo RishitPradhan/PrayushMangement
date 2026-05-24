@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 
 type StatusType = 'planning' | 'in-progress' | 'review' | 'completed' | 'todo' | 'overdue' |
                   'low' | 'medium' | 'high' | 'urgent' |
-                  'paid' | 'partial' | 'pending' | 'active' | 'inactive' | 'prospect'
+                  'paid' | 'partial' | 'pending' | 'active' | 'inactive' | 'prospect' | 'closed'
 
 const statusMap: Record<StatusType, { label: string; className: string }> = {
   planning:    { label: 'Planning',     className: 'badge badge-planning' },
@@ -21,6 +21,7 @@ const statusMap: Record<StatusType, { label: string; className: string }> = {
   active:      { label: 'Active',       className: 'badge badge-completed' },
   inactive:    { label: 'Inactive',     className: 'badge badge-todo' },
   prospect:    { label: 'Prospect',     className: 'badge badge-planning' },
+  closed:      { label: 'Closed',       className: 'badge badge-todo' },
 }
 
 interface StatusBadgeProps {

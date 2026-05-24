@@ -8,7 +8,7 @@ export type TaskStatus = 'todo' | 'in-progress' | 'review' | 'completed';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type PaymentStatus = 'paid' | 'partial' | 'pending' | 'overdue';
 export type FileType = 'drive' | 'figma' | 'url' | 'upload';
-export type ClientStatus = 'active' | 'inactive' | 'prospect';
+export type ClientStatus = 'active' | 'inactive' | 'prospect' | 'closed';
 
 // --------------------------------
 // User / Profile
@@ -33,10 +33,36 @@ export interface Client {
   phone?: string;
   status: ClientStatus;
   notes?: string;
+  portal_token?: string;
   created_at: string;
   // Joined
   projects?: Project[];
   active_projects_count?: number;
+}
+
+// --------------------------------
+// Portal Types
+// --------------------------------
+export interface PortalData {
+  client: {
+    id: string;
+    name: string;
+    company: string;
+    email: string;
+    phone?: string;
+  };
+  projects: {
+    id: string;
+    name: string;
+    description: string;
+    status: ProjectStatus;
+    progress: number;
+    due_date?: string;
+    priority: Priority;
+    files: ProjectFile[];
+    payments: Payment[];
+    tasks: { id: string; title: string; status: TaskStatus; priority: Priority; due_date?: string }[];
+  }[];
 }
 
 // --------------------------------
@@ -124,7 +150,31 @@ export interface Payment {
   notes?: string;
   created_at: string;
   // Joined
-  project?: Project;
+}
+
+// --------------------------------
+// Expense
+// --------------------------------
+export interface Expense {
+  id: string;
+  category: 'business' | 'team' | 'client' | 'revenue';
+  title: string;
+  amount: number;
+  date: string;
+  recipient?: string;
+  user_id?: string;
+  project_id?: string;
+  description?: string;
+  created_at: string;
+  // Joined
+  user?: Profile;
+  project?: {
+    id: string;
+    name: string;
+    client?: {
+      name: string;
+    };
+  };
 }
 
 // --------------------------------
@@ -166,6 +216,7 @@ export interface DashboardStats {
   totalRevenue: number;
   pendingPayments: number;
   projectsStartedThisMonth?: number;
+  myEarnings: number;
 }
 
 // --------------------------------

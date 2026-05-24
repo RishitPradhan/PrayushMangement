@@ -70,6 +70,26 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
     }
   }
 
+  const handleGenerateLink = async (e: React.MouseEvent, client: Client) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const supabase = createClient()
+    const newToken = crypto.randomUUID()
+    const { error } = await supabase.from('clients').update({ portal_token: newToken }).eq('id', client.id)
+    if (error) { toast.error(error.message) } else {
+      toast.success('Portal Link Generated!')
+      window.location.reload()
+    }
+  }
+
+  const handleCopyLink = (e: React.MouseEvent, token: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const url = `${window.location.origin}/portal/${token}`
+    navigator.clipboard.writeText(url)
+    toast.success('Portal link copied to clipboard!')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -98,8 +118,9 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
   )
 
   return (
-    <div className="max-w-7xl mx-auto animate-fade-in">
-      <PageHeader
+    <div className="max-w-7xl mx-auto">
+      <div className="animate-fade-in space-y-6">
+        <PageHeader
         title="Clients"
         subtitle={`${clients.length} clients`}
         action={
@@ -179,10 +200,35 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
                   <FolderKanban size={11} className="text-[#e63946]" />
                   <span>{client.active_projects_count} active project{client.active_projects_count !== 1 ? 's' : ''}</span>
                 </div>
+
+                {/* Portal Link */}
+                <div className="pt-3 border-t border-[rgba(255,255,255,0.05)] mt-3">
+                  {client.portal_token ? (
+                    <div className="flex items-center justify-between bg-black/40 p-2 rounded-lg border border-[rgba(255,255,255,0.05)]">
+                      <span className="text-[11px] text-emerald-400 font-mono truncate mr-2">
+                        {client.portal_token.split('-')[0]}...
+                      </span>
+                      <button 
+                        onClick={(e) => handleCopyLink(e, client.portal_token!)}
+                        className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded hover:bg-emerald-500/30 transition-colors"
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={(e) => handleGenerateLink(e, client)}
+                      className="w-full text-[11px] bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 py-1.5 rounded transition-colors"
+                    >
+                      Generate Portal Link
+                    </button>
+                  )}
+                </div>
               </div>
             </Link>
           </motion.div>
         ))}
+      </div>
       </div>
 
       {/* Form Modal */}
@@ -203,33 +249,32 @@ export function ClientsClient({ clients: initialClients, userRole = 'member' }: 
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Name *</label>
+                  <input type="text" className="input-base" placeholder="Ayush Sharma" required {...field('name')} />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Name *</label>
-                    <input type="text" className="input-base" placeholder="Ayush Sharma" required {...field('name')} />
-                  </div>
                   <div>
                     <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Company</label>
                     <input type="text" className="input-base" placeholder="Acme Corp" {...field('company')} />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Email *</label>
-                  <input type="email" className="input-base" placeholder="client@company.com" required {...field('email')} />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Phone</label>
                     <input type="tel" className="input-base" placeholder="+91 98765 43210" {...field('phone')} />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Status</label>
-                    <select className="input-base" {...field('status')}>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="prospect">Prospect</option>
-                    </select>
-                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Email</label>
+                  <input type="email" className="input-base" placeholder="client@company.com" {...field('email')} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Status</label>
+                  <select className="input-base" {...field('status')}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="prospect">Prospect</option>
+                    <option value="closed">Closed</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-medium text-[#666] mb-1.5 uppercase tracking-wider">Notes</label>

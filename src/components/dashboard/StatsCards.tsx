@@ -10,56 +10,94 @@ interface StatsCardsProps {
   userRole?: string
 }
 
-const cards = (stats: DashboardStats) => [
-  {
-    label: 'Active Projects',
-    value: stats.activeProjects,
-    icon: FolderKanban,
-    color: '#a855f7',
-    bg: 'rgba(168,85,247,0.06)',
-    border: 'rgba(168,85,247,0.15)',
-    change: stats.projectsStartedThisMonth !== undefined 
-      ? `+${stats.projectsStartedThisMonth} this month`
-      : 'Active this month',
-  },
-  {
-    label: 'Pending Tasks',
-    value: stats.pendingTasks,
-    icon: CheckSquare,
-    color: '#eab308',
-    bg: 'rgba(234,179,8,0.06)',
-    border: 'rgba(234,179,8,0.15)',
-    change: `${stats.completedTasks} completed`,
-  },
-  {
-    label: 'Overdue Items',
-    value: stats.overdueItems,
-    icon: AlertTriangle,
-    color: '#ef4444',
-    bg: 'rgba(239,68,68,0.06)',
-    border: 'rgba(239,68,68,0.15)',
-    change: 'Needs attention',
-    pulse: stats.overdueItems > 0,
-  },
-  {
-    label: 'Total Revenue',
-    value: formatCurrency(stats.totalRevenue),
-    icon: DollarSign,
-    color: '#22c55e',
-    bg: 'rgba(34,197,94,0.06)',
-    border: 'rgba(34,197,94,0.15)',
-    change: `${formatCurrency(stats.pendingPayments)} pending`,
-  },
-]
+interface CardItem {
+  label: string
+  value: string | number
+  icon: any
+  color: string
+  bg: string
+  border: string
+  change: string
+  pulse?: boolean
+}
+
+const cards = (stats: DashboardStats, userRole?: string): CardItem[] => {
+  const baseCards = [
+    {
+      label: 'Active Projects',
+      value: stats.activeProjects,
+      icon: FolderKanban,
+      color: '#a855f7',
+      bg: 'rgba(168,85,247,0.06)',
+      border: 'rgba(168,85,247,0.15)',
+      change: stats.projectsStartedThisMonth !== undefined 
+        ? `+${stats.projectsStartedThisMonth} this month`
+        : 'Active this month',
+    },
+    {
+      label: 'Pending Tasks',
+      value: stats.pendingTasks,
+      icon: CheckSquare,
+      color: '#eab308',
+      bg: 'rgba(234,179,8,0.06)',
+      border: 'rgba(234,179,8,0.15)',
+      change: `${stats.completedTasks} completed`,
+    },
+    {
+      label: 'Overdue Items',
+      value: stats.overdueItems,
+      icon: AlertTriangle,
+      color: '#ef4444',
+      bg: 'rgba(239,68,68,0.06)',
+      border: 'rgba(239,68,68,0.15)',
+      change: 'Needs attention',
+      pulse: stats.overdueItems > 0,
+    }
+  ]
+
+  if (userRole === 'admin') {
+    return [
+      ...baseCards,
+      {
+        label: 'Total Revenue',
+        value: formatCurrency(stats.totalRevenue),
+        icon: DollarSign,
+        color: '#22c55e',
+        bg: 'rgba(34,197,94,0.06)',
+        border: 'rgba(34,197,94,0.15)',
+        change: `${formatCurrency(stats.pendingPayments)} pending`,
+      },
+      {
+        label: 'My Earnings',
+        value: formatCurrency(stats.myEarnings),
+        icon: DollarSign,
+        color: '#3b82f6',
+        bg: 'rgba(59,130,246,0.06)',
+        border: 'rgba(59,130,246,0.15)',
+        change: 'Personal payouts',
+      }
+    ]
+  }
+
+  return [
+    ...baseCards,
+    {
+      label: 'My Earnings',
+      value: formatCurrency(stats.myEarnings),
+      icon: DollarSign,
+      color: '#22c55e',
+      bg: 'rgba(34,197,94,0.06)',
+      border: 'rgba(34,197,94,0.15)',
+      change: 'Commission payouts',
+    }
+  ]
+}
 
 export function StatsCards({ stats, userRole }: StatsCardsProps) {
-  const allCards = cards(stats)
-  const displayCards = userRole === 'admin' 
-    ? allCards 
-    : allCards.filter(c => c.label !== 'Total Revenue')
+  const displayCards = cards(stats, userRole)
 
-  const gridClass = displayCards.length === 3
-    ? "grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
+  const gridClass = userRole === 'admin'
+    ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6"
     : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8"
 
   return (

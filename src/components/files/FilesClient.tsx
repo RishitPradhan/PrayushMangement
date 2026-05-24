@@ -183,8 +183,9 @@ export function FilesClient({ files: initialFiles, projects, tasks, userId, user
   }, {} as Record<string, typeof filtered>)
 
   return (
-    <div className="max-w-6xl mx-auto animate-fade-in">
-      <PageHeader
+    <div className="max-w-6xl mx-auto">
+      <div className="animate-fade-in">
+        <PageHeader
         title="Files & Links"
         subtitle={`${files.length} items`}
         action={
@@ -272,6 +273,7 @@ export function FilesClient({ files: initialFiles, projects, tasks, userId, user
           ))}
         </div>
       )}
+      </div>
 
       {/* Modal */}
       <AnimatePresence>

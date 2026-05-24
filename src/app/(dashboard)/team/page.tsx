@@ -2,7 +2,7 @@ import { createClient, getCurrentUserProfile } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Avatar } from '@/components/shared/Avatar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
-
+import { formatCurrency } from '@/lib/utils'
 import { redirect } from 'next/navigation'
 
 export default async function TeamPage() {
@@ -11,16 +11,17 @@ export default async function TeamPage() {
 
   const supabase = await createClient()
 
+  // Fetch profiles joined with their assigned tasks and payouts/expenses
   const { data: members } = await supabase
     .from('profiles')
-    .select('*, assigned_tasks:tasks(id, status, priority)')
+    .select('*, assigned_tasks:tasks(id, status, priority), expenses:expenses(id, amount, category)')
     .order('full_name')
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
       <PageHeader
-        title="Team"
-        subtitle={`${(members ?? []).length} members`}
+        title="Team Directory"
+        subtitle={`${(members ?? []).length} active members`}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -30,8 +31,15 @@ export default async function TeamPage() {
           const completed = tasks.filter((t: { status: string }) => t.status === 'completed').length
           const completion = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0
 
+          // Calculate total payouts/commission earnings mapped to this team profile
+          const memberExpenses = member.expenses ?? []
+          const totalEarnings = memberExpenses
+            .filter((e: { category: string }) => e.category === 'team')
+            .reduce((sum: number, e: { amount: number }) => sum + Number(e.amount), 0)
+
           return (
-            <div key={member.id} className="glass-card p-5">
+            <div key={member.id} className="glass-card p-5 border border-white/5 hover:border-white/10 transition-all">
+              
               {/* Header */}
               <div className="flex items-start gap-3 mb-4">
                 <Avatar name={member.full_name} avatarUrl={member.avatar_url} size="lg" />
@@ -44,41 +52,41 @@ export default async function TeamPage() {
                 </div>
               </div>
 
-              {/* Stats */}
+              {/* Stats Grid including Task Counts and Commission Payouts */}
               <div className="grid grid-cols-3 gap-2 mb-4 text-center">
                 {[
-                  { label: 'Total', value: tasks.length },
                   { label: 'Active', value: active },
-                  { label: 'Done', value: completed },
+                  { label: 'Completed', value: completed },
+                  { label: 'Earnings', value: formatCurrency(totalEarnings) },
                 ].map(stat => (
-                  <div key={stat.label} className="bg-[rgba(255,255,255,0.03)] rounded-lg py-2">
-                    <div className="text-[15px] font-bold text-white">{stat.value}</div>
-                    <div className="text-[10px] text-[#555]">{stat.label}</div>
+                  <div key={stat.label} className="bg-[rgba(255,255,255,0.02)] border border-white/5 rounded-lg py-2 px-1">
+                    <div className="text-[12px] sm:text-[13px] font-black text-white truncate">{stat.value}</div>
+                    <div className="text-[9px] text-[#555] font-semibold mt-0.5 uppercase tracking-wider">{stat.label}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Completion */}
+              {/* Completion Progress Bar */}
               <div>
-                <div className="flex justify-between text-[11px] text-[#555] mb-1.5">
+                <div className="flex justify-between text-[10px] text-[#555] font-semibold uppercase tracking-wider mb-1.5">
                   <span>Task Completion</span>
                   <span className="text-white">{completion}%</span>
                 </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${completion}%` }} />
+                <div className="progress-bar h-1">
+                  <div className="progress-fill bg-white" style={{ width: `${completion}%` }} />
                 </div>
               </div>
 
-              {/* Priority breakdown */}
+              {/* Priority Task Breakdown */}
               {tasks.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-[rgba(255,255,255,0.05)] flex flex-wrap gap-1">
+                <div className="mt-4 pt-3 border-t border-white/5 flex flex-wrap gap-1">
                   {['urgent', 'high', 'medium', 'low'].map(p => {
                     const count = tasks.filter((t: { priority: string }) => t.priority === p).length
                     if (count === 0) return null
                     return (
-                      <span key={p} className="flex items-center gap-1">
-                        <StatusBadge status={p} className="text-[10px]" />
-                        <span className="text-[10px] text-[#444]">{count}</span>
+                      <span key={p} className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-full">
+                        <StatusBadge status={p} className="text-[9px]" />
+                        <span className="text-[9px] text-gray-400 font-semibold">{count}</span>
                       </span>
                     )
                   })}

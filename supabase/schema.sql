@@ -51,9 +51,9 @@ CREATE TABLE IF NOT EXISTS clients (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   name TEXT NOT NULL,
   company TEXT NOT NULL DEFAULT '',
-  email TEXT NOT NULL,
+  email TEXT,
   phone TEXT,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'prospect')),
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'prospect', 'closed')),
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -425,3 +425,96 @@ CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_a
 CREATE INDEX IF NOT EXISTS idx_activity_log_user_id ON activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at DESC);
+
+-- ============================================
+-- PRAYUSH STUDIOS — Client Portal Schema Updates
+-- ============================================
+
+-- 1. Add portal_token to clients table
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS portal_token UUID UNIQUE;
+
+-- 2. Create RPC function to safely fetch client portal data
+CREATE OR REPLACE FUNCTION get_client_portal_data(p_token UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_client RECORD;
+  v_projects JSONB;
+BEGIN
+  -- Validate token and ensure client is active
+  SELECT id, name, company, email, phone INTO v_client 
+  FROM public.clients 
+  WHERE portal_token = p_token AND status = 'active';
+  
+  IF v_client IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  -- Fetch projects and related data securely
+  SELECT jsonb_agg(
+    jsonb_build_object(
+      'id', p.id,
+      'name', p.name,
+      'description', p.description,
+      'status', p.status,
+      'progress', p.progress,
+      'due_date', p.due_date,
+      'priority', p.priority,
+      'files', COALESCE((SELECT jsonb_agg(f) FROM files f WHERE f.project_id = p.id), '[]'::jsonb),
+      'payments', COALESCE((SELECT jsonb_agg(pay) FROM payments pay WHERE pay.project_id = p.id), '[]'::jsonb),
+      'tasks', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', t.id, 'title', t.title, 'status', t.status, 'priority', t.priority, 'due_date', t.due_date)) FROM tasks t WHERE t.project_id = p.id AND t.status != 'completed'), '[]'::jsonb)
+    )
+  )
+  INTO v_projects
+  FROM public.projects p
+  WHERE p.client_id = v_client.id;
+
+  -- Return securely packaged JSON
+  RETURN jsonb_build_object(
+    'client', jsonb_build_object('id', v_client.id, 'name', v_client.name, 'company', v_client.company, 'email', v_client.email, 'phone', v_client.phone),
+    'projects', COALESCE(v_projects, '[]'::jsonb)
+  );
+END;
+$$;
+
+-- 3. Create RPC function for unauthenticated clients to submit revisions
+CREATE OR REPLACE FUNCTION submit_portal_revision(p_token UUID, p_project_id UUID, p_message TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_client_id UUID;
+  v_author_id UUID;
+BEGIN
+  -- Validate token
+  SELECT id INTO v_client_id FROM public.clients WHERE portal_token = p_token AND status = 'active';
+  
+  IF v_client_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  -- Verify project belongs to this client
+  IF NOT EXISTS (SELECT 1 FROM public.projects WHERE id = p_project_id AND client_id = v_client_id) THEN
+    RETURN FALSE;
+  END IF;
+
+  SELECT id INTO v_author_id FROM public.profiles WHERE role = 'admin' LIMIT 1;
+
+  -- Insert Note
+  INSERT INTO public.notes (author_id, entity_id, entity_type, content)
+  VALUES (v_author_id, p_project_id, 'project', '[Client Revision] ' || p_message);
+
+  -- Create a High Priority Review Task
+  INSERT INTO public.tasks (project_id, title, description, status, priority)
+  VALUES (p_project_id, 'Client Revision Request', p_message, 'review', 'high');
+
+  -- Create Activity Log
+  INSERT INTO public.activity_log (user_id, action, entity_type, entity_id, metadata)
+  VALUES (v_author_id, 'Client requested revision', 'project', p_project_id, jsonb_build_object('message', p_message));
+
+  RETURN TRUE;
+END;
+$$;

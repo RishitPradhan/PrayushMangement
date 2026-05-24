@@ -65,8 +65,9 @@ export function ProjectsClient({ projects: initialProjects, clients, userRole = 
   })
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
-      <PageHeader
+    <div className="max-w-7xl mx-auto">
+      <div className="animate-fade-in space-y-8">
+        <PageHeader
         title="Projects"
         subtitle={`${projects.length} premium client accounts active`}
         action={
@@ -140,6 +141,7 @@ export function ProjectsClient({ projects: initialProjects, clients, userRole = 
           ))}
         </div>
       )}
+      </div>
 
       {/* Form Modal */}
       {showForm && (
