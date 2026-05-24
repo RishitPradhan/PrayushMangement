@@ -634,14 +634,14 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
   }
 
   return (
-    <div className="min-h-screen bg-[#020204] text-white p-4 sm:p-8 lg:p-12 font-sans relative">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#020204] text-white p-4 sm:p-8 lg:p-12 font-sans relative flex flex-col">
       
       {/* Dynamic neon orbs in background */}
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#a855f7]/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-[#e63946]/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-[40%] right-[10%] w-[40vw] h-[40vw] bg-[#3b82f6]/4 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto space-y-12 relative z-10">
+      <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col min-h-0 space-y-6 relative z-10">
         
         {/* Header */}
         <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-[rgba(255,255,255,0.04)]">
@@ -676,10 +676,10 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
         </header>
 
         {activeProject ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:flex-1 lg:min-h-0">
             
             {/* Main Column */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="lg:col-span-2 space-y-8 lg:h-full lg:overflow-y-auto lg:pr-4 scrollbar-custom">
               {/* Project Metrics Summary Banner */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Card 1: Current Phase */}
@@ -778,27 +778,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 </div>
               </section>
 
-              {/* 2. Project Meta Metrics Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Current Phase</div>
-                  <div className="text-sm font-extrabold text-[#a855f7] tracking-wide flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] animate-pulse" /> {activeProject.portal_current_phase || 'Design & Development'}
-                  </div>
-                </div>
-                <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Next Phase</div>
-                  <div className="text-sm font-extrabold text-white tracking-wide">
-                    {activeProject.portal_next_phase || 'Launch & Handoff'}
-                  </div>
-                </div>
-                <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Estimated Completion</div>
-                  <div className="text-sm font-extrabold text-[#eab308] tracking-wide">
-                    {activeProject.due_date ? formatDate(activeProject.due_date) : 'May 2026'}
-                  </div>
-                </div>
-              </div>
+
 
               {/* 3. Interactive Roadmap (Phase 1, 2, 3) */}
               <section className="space-y-6">
@@ -1071,7 +1051,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
             </div>
 
             {/* Right Column */}
-            <div className="lg:sticky lg:top-8 space-y-8 lg:self-start">
+            <div className="space-y-8 lg:h-full lg:overflow-y-auto lg:pr-1 scrollbar-custom">
               
               {/* Financial Ledger card */}
               <section className="glass-card p-8">
