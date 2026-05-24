@@ -621,7 +621,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
   }
 
   return (
-    <div className="min-h-screen bg-[#020204] text-white p-4 sm:p-8 lg:p-12 font-sans overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#020204] text-white p-4 sm:p-8 lg:p-12 font-sans relative">
       
       {/* Dynamic neon orbs in background */}
       <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[#a855f7]/5 rounded-full blur-[120px] pointer-events-none" />
