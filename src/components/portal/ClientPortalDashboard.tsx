@@ -92,6 +92,31 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     setShowEditMilestoneModal(true)
   }
 
+  // Milestone Details Split-Pane Modal states
+  const [showMilestoneDetailsModal, setShowMilestoneDetailsModal] = useState(false)
+  const [activeMilestoneDetail, setActiveMilestoneDetail] = useState<{
+    pIdx: number
+    iIdx: number
+    phaseName: string
+    name: string
+    tag: string
+    assetUrl: string
+  } | null>(null)
+
+  const openMilestoneDetailsModal = (pIdx: number, iIdx: number, item: { name: string; tag: string; assetUrl: string }, phaseName: string) => {
+    setActiveMilestoneDetail({
+      pIdx,
+      iIdx,
+      phaseName,
+      name: item.name,
+      tag: item.tag,
+      assetUrl: item.assetUrl || ''
+    })
+    setShowMilestoneDetailsModal(true)
+  }
+
+  const [milestoneNoteMessage, setMilestoneNoteMessage] = useState('')
+
   const handleEditMilestoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedMilestone || !activeProject) return
@@ -157,6 +182,45 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     }
     setIsSubmitting(false)
   }
+
+  const parseRoadmap = (roadmapStr?: string) => {
+    const defaultRoadmap = 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 15 May,Site management guide,Invoice & payment,Ongoing support'
+    const str = roadmapStr || defaultRoadmap
+    
+    return str.split(';').map((phaseStr, idx) => {
+      const parts = phaseStr.split('|')
+      const titlePart = parts[0] || `Phase ${idx + 1}`
+      const descPart = parts[1] || ''
+      const itemsPart = parts[2] || ''
+      
+      const items = itemsPart.split(',').map(item => {
+        let rawNameAndTag = item
+        let assetUrl = ''
+        
+        if (item.includes('^')) {
+          const parts = item.split('^')
+          rawNameAndTag = parts[0] || ''
+          assetUrl = parts[1] || ''
+        }
+
+        const subparts = rawNameAndTag.split(' - ')
+        const name = subparts[0] || ''
+        const tag = subparts[1] || ''
+
+        return { name, tag, assetUrl }
+      })
+
+      return {
+        key: `phase${idx + 1}`,
+        phaseNum: titlePart.split(':')[0]?.trim() || `Phase ${idx + 1}`,
+        title: titlePart.split(':')[1]?.trim() || titlePart,
+        description: descPart,
+        items
+      }
+    })
+  }
+
+  const parsedPhases = activeProject ? parseRoadmap(activeProject.portal_roadmap) : []
 
   const getStatusColor = (status: ProjectStatus) => {
     switch (status) {
@@ -379,6 +443,75 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
     setIsSubmitting(false)
   }
 
+  // Handle milestone-specific note/comment submission
+  const handleMilestoneNoteSubmit = async (e: React.FormEvent, milestoneName: string) => {
+    e.preventDefault()
+    if (!milestoneNoteMessage.trim() || !activeProject) return
+
+    setIsSubmitting(true)
+    const supabase = createClient()
+    const prefixedMessage = `[Milestone: ${milestoneName}] ${milestoneNoteMessage.trim()}`
+
+    // Call secure RPC to insert client note
+    const { data: insertedNote, error } = await supabase.rpc('add_portal_note', {
+      p_token: token,
+      p_project_id: activeProject.id,
+      p_content: prefixedMessage
+    })
+
+    if (error) {
+      console.warn('add_portal_note RPC not found, falling back to submit_portal_revision:', error)
+      const { data: fallbackSuccess, error: fallbackError } = await supabase.rpc('submit_portal_revision', {
+        p_token: token,
+        p_project_id: activeProject.id,
+        p_message: prefixedMessage
+      })
+
+      if (fallbackError) {
+        toast.error('Failed to post comment: ' + fallbackError.message)
+      } else {
+        toast.success('Comment posted successfully!')
+        
+        // Push a local mockup note to the UI feed so they see it instantly!
+        const mockNote: Note = {
+          id: Math.random().toString(),
+          author_id: '',
+          entity_id: activeProject.id,
+          entity_type: 'project',
+          content: prefixedMessage,
+          created_at: new Date().toISOString(),
+          author: {
+            id: '',
+            email: data.client.email,
+            full_name: data.client.name + ' (Client)',
+            role: 'member',
+            created_at: new Date().toISOString()
+          }
+        }
+
+        setData(prev => ({
+          ...prev,
+          projects: prev.projects.map(p => p.id === activeProject.id ? {
+            ...p,
+            notes: [mockNote, ...(p.notes || [])]
+          } : p)
+        }))
+        setMilestoneNoteMessage('')
+      }
+    } else if (insertedNote) {
+      toast.success('Comment posted successfully!')
+      setData(prev => ({
+        ...prev,
+        projects: prev.projects.map(p => p.id === activeProject.id ? {
+          ...p,
+          notes: [insertedNote, ...(p.notes || [])]
+        } : p)
+      }))
+      setMilestoneNoteMessage('')
+    }
+    setIsSubmitting(false)
+  }
+
   // Handle file selection for file upload in the portal
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -534,6 +667,26 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
             
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
+              {/* Project Metrics Summary Banner */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Card 1: Current Phase */}
+                <div className="glass-card p-5 border-l-4 border-l-[#BD00FF] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-[#BD00FF] mb-1">Current Phase</p>
+                  <h4 className="text-sm font-extrabold text-white">{activeProject.portal_current_phase || 'Design & Development'}</h4>
+                  <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#BD00FF] animate-pulse" />
+                </div>
+                {/* Card 2: Next Phase */}
+                <div className="glass-card p-5 border-l-4 border-l-[#00F2FE] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-[#00F2FE] mb-1">Next Phase</p>
+                  <h4 className="text-sm font-extrabold text-white">{activeProject.portal_next_phase || 'Launch & Handoff'}</h4>
+                </div>
+                {/* Card 3: Estimated Completion */}
+                <div className="glass-card p-5 border-l-4 border-l-[#39FF14] relative overflow-hidden bg-[#11141D] flex flex-col justify-center">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-[#39FF14] mb-1">Estimated Completion</p>
+                  <h4 className="text-sm font-extrabold text-white">May 2026</h4>
+                </div>
+              </div>
+
                      {/* 1. Welcome Onboarding Card */}
               <section className="glass-card p-6 sm:p-8 relative overflow-hidden group hover:border-[rgba(168,85,247,0.15)] transition-all duration-300">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#a855f7] opacity-[0.02] rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
@@ -644,47 +797,7 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                 </div>
 
                 <div className="space-y-4">
-                  {(() => {
-                    const parseRoadmap = (roadmapStr?: string) => {
-                      const defaultRoadmap = 'Phase 1: Discovery|Aligning on your vision, goals, and project scope|Getting started,Kickoff meeting - 15 Mar,Brand guidelines,Brand assets - 1 pending,Timeline & milestones - 21 Mar;Phase 2: Design & Development|Creating, refining, and building your new website|Design mockups - 1 Apr,Design inspiration,Feedback & revisions - 4 steps,SEO foundations - 2 keys;Phase 3: Launch & Handoff|Final files, documentation, and everything you need to go live|Final deliverables - 15 May,Site management guide,Invoice & payment,Ongoing support'
-                      const str = roadmapStr || defaultRoadmap
-                      
-                      return str.split(';').map((phaseStr, idx) => {
-                        const parts = phaseStr.split('|')
-                        const titlePart = parts[0] || `Phase ${idx + 1}`
-                        const descPart = parts[1] || ''
-                        const itemsPart = parts[2] || ''
-                        
-                        const items = itemsPart.split(',').map(item => {
-                          let rawNameAndTag = item
-                          let assetUrl = ''
-                          
-                          if (item.includes('^')) {
-                            const parts = item.split('^')
-                            rawNameAndTag = parts[0] || ''
-                            assetUrl = parts[1] || ''
-                          }
-
-                          const subparts = rawNameAndTag.split(' - ')
-                          const name = subparts[0] || ''
-                          const tag = subparts[1] || ''
-
-                          return { name, tag, assetUrl }
-                        })
-
-                        return {
-                          key: `phase${idx + 1}`,
-                          phaseNum: titlePart.split(':')[0]?.trim() || `Phase ${idx + 1}`,
-                          title: titlePart.split(':')[1]?.trim() || titlePart,
-                          description: descPart,
-                          items
-                        }
-                      })
-                    }
-
-                    const parsedPhases = parseRoadmap(activeProject.portal_roadmap)
-
-                    return parsedPhases.map((phase, pIdx) => {
+                  {parsedPhases.map((phase, pIdx) => {
                       const isExpanded = expandedPhases[phase.key] !== false;
                       const badgeColor = pIdx === 0 ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : pIdx === 1 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
 
@@ -714,22 +827,52 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                 exit={{ height: 0 }}
                                 className="overflow-hidden border-t border-white/5 bg-black/20"
                               >
-                                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {phase.items.map((item, iIdx) => {
-                                    const isPending = item.tag.toLowerCase().includes('pending');
-                                    const isDone = !isPending && (pIdx === 0 || iIdx < 2);
-                                    return (
-                                      <div key={iIdx} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col justify-between hover:bg-white/[0.04] transition-all group">
-                                        <div className="flex items-start gap-3 w-full">
-                                          {isDone ? (
-                                            <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
-                                          ) : (
-                                            <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start gap-2">
-                                              <h5 className="text-[13px] font-bold text-white truncate">{item.name}</h5>
-                                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                  {(() => {
+                                    const getMilestoneIcon = (name: string) => {
+                                      const lowercaseName = name.toLowerCase();
+                                      if (lowercaseName.includes('discovery') || lowercaseName.includes('inspiration') || lowercaseName.includes('research')) {
+                                        return <Sparkles className="text-[#00F2FE]" size={18} />
+                                      }
+                                      if (lowercaseName.includes('kickoff') || lowercaseName.includes('call') || lowercaseName.includes('meeting')) {
+                                        return <MessageSquare className="text-[#a855f7]" size={18} />
+                                      }
+                                      if (lowercaseName.includes('brand') || lowercaseName.includes('assets') || lowercaseName.includes('logo')) {
+                                        return <Folder className="text-[#BD00FF]" size={18} />
+                                      }
+                                      if (lowercaseName.includes('timeline') || lowercaseName.includes('milestones') || lowercaseName.includes('schedule')) {
+                                        return <Calendar className="text-[#39FF14]" size={18} />
+                                      }
+                                      if (lowercaseName.includes('design') || lowercaseName.includes('mockup') || lowercaseName.includes('prototype')) {
+                                        return <Pencil className="text-[#BD00FF]" size={18} />
+                                      }
+                                      if (lowercaseName.includes('seo') || lowercaseName.includes('google') || lowercaseName.includes('marketing')) {
+                                        return <Info className="text-[#00F2FE]" size={18} />
+                                      }
+                                      if (lowercaseName.includes('invoice') || lowercaseName.includes('payment') || lowercaseName.includes('ledger')) {
+                                        return <DollarSign className="text-[#39FF14]" size={18} />
+                                      }
+                                      return <FileText className="text-gray-400" size={18} />
+                                    }
+
+                                    return phase.items.map((item, iIdx) => {
+                                      const isPending = item.tag.toLowerCase().includes('pending');
+                                      const isDone = !isPending && (pIdx === 0 || iIdx < 2);
+                                      return (
+                                        <div 
+                                          key={iIdx} 
+                                          onClick={() => openMilestoneDetailsModal(pIdx, iIdx, item, phase.title)}
+                                          className="p-5 rounded-2xl bg-[#11141D] hover:bg-[#151924] border border-white/5 flex flex-col justify-between hover:border-[#a855f7]/30 transition-all duration-300 group cursor-pointer relative overflow-hidden"
+                                        >
+                                          <div className="absolute top-0 right-0 w-24 h-24 bg-[#a855f7] opacity-[0.01] rounded-full blur-xl pointer-events-none group-hover:opacity-[0.03] transition-all" />
+                                          
+                                          <div className="space-y-4">
+                                            <div className="flex justify-between items-start">
+                                              <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center flex-shrink-0">
+                                                {getMilestoneIcon(item.name)}
+                                              </div>
+                                              
+                                              <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
                                                 {item.tag && (
                                                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${
                                                     isPending 
@@ -749,36 +892,41 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                                                 </button>
                                               </div>
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-0.5">Track deliverables and customize attachments for {item.name}.</p>
+
+                                            <div className="space-y-1">
+                                              <h5 className="text-[13px] font-black text-white group-hover:text-[#a855f7] transition-all truncate">{item.name}</h5>
+                                              <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-2">
+                                                Click to view deliverables, access links, and write specific updates for {item.name}.
+                                              </p>
+                                            </div>
                                           </div>
+
+                                          {item.assetUrl && (
+                                            <div className="mt-4 pt-3 border-t border-white/5 flex justify-between items-center w-full" onClick={e => e.stopPropagation()}>
+                                              <span className="text-[10px] text-gray-500 font-medium flex items-center gap-1">
+                                                <LinkIcon size={10} className="text-[#a855f7]" /> Asset Available
+                                              </span>
+                                              <a 
+                                                href={item.assetUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#a855f7] hover:text-white transition-all"
+                                              >
+                                                Open <ExternalLink size={10} />
+                                              </a>
+                                            </div>
+                                          )}
                                         </div>
-                                        
-                                        {item.assetUrl && (
-                                          <div className="mt-3 pt-2.5 border-t border-white/5 w-full flex justify-between items-center">
-                                            <span className="text-[10px] text-gray-500 flex items-center gap-1">
-                                              {item.assetUrl.includes('figma.com') ? 'Figma Asset' : item.assetUrl.includes('drive.google.com') ? 'Drive Folder' : 'External Deliverable'}
-                                            </span>
-                                            <a 
-                                              href={item.assetUrl}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#a855f7] hover:text-white transition-all"
-                                            >
-                                              Open Asset <ExternalLink size={10} />
-                                            </a>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )
-                                  })}
+                                      )
+                                    })
+                                  })()}
                                 </div>
                               </motion.div>
                             )}
                           </AnimatePresence>
                         </div>
                       )
-                    })
-                  })()}
+                    })}
                 </div>
               </section>
 
@@ -1434,6 +1582,227 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Split-Pane Milestone Details & Discussion Modal */}
+      <AnimatePresence>
+        {showMilestoneDetailsModal && activeMilestoneDetail && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 md:p-10">
+            <motion.div 
+              className="w-full max-w-6xl h-[85vh] bg-[#0A0D14] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative"
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            >
+              {/* Close Button Mobile/Global */}
+              <button 
+                onClick={() => setShowMilestoneDetailsModal(false)}
+                className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all hover:scale-105"
+                title="Close"
+              >
+                <X size={16} />
+              </button>
+
+              {/* Left Column (Sticky Sidebar - Milestone List) - 1/3 width */}
+              <div className="w-full md:w-80 border-r border-white/5 bg-[#07090E]/60 flex flex-col h-full flex-shrink-0">
+                <div className="p-6 border-b border-white/5 flex items-center gap-3">
+                  <button 
+                    onClick={() => setShowMilestoneDetailsModal(false)}
+                    className="inline-flex items-center gap-1.5 text-xs text-[#a855f7] hover:text-white transition-all font-black uppercase tracking-widest"
+                  >
+                    <ChevronDown size={14} className="rotate-90" /> Back to Portal
+                  </button>
+                </div>
+                
+                {/* Scrollable list of phases & milestones */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-custom">
+                  {parsedPhases.map((phase, pIdx) => (
+                    <div key={phase.key} className="space-y-2">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-gray-500 px-2">
+                        {phase.phaseNum}: {phase.title}
+                      </div>
+                      <div className="space-y-1">
+                        {phase.items.map((item, iIdx) => {
+                          const isActive = activeMilestoneDetail.pIdx === pIdx && activeMilestoneDetail.iIdx === iIdx;
+                          return (
+                            <button
+                              key={iIdx}
+                              type="button"
+                              onClick={() => setActiveMilestoneDetail({
+                                pIdx,
+                                iIdx,
+                                phaseName: phase.title,
+                                name: item.name,
+                                tag: item.tag,
+                                assetUrl: item.assetUrl || ''
+                              })}
+                              className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-2.5 text-xs ${
+                                isActive 
+                                  ? 'bg-[#a855f7]/10 border border-[#a855f7]/25 text-white font-extrabold shadow-lg shadow-purple-500/5'
+                                  : 'bg-transparent border border-transparent text-gray-400 hover:bg-white/[0.02] hover:text-white'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                                isActive ? 'bg-[#a855f7] animate-pulse' : 'bg-gray-600'
+                              }`} />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate">{item.name}</p>
+                                {item.tag && <p className="text-[9px] text-gray-500 mt-0.5">{item.tag}</p>}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column (Dynamic Content & Discussion Area) - 2/3 width */}
+              <div className="flex-1 flex flex-col h-full bg-[#0A0D14]/90 overflow-hidden">
+                <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8 scrollbar-custom">
+                  
+                  {/* Title and breadcrumb */}
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-black tracking-widest text-[#a855f7] uppercase flex items-center gap-1.5">
+                      <span>{activeMilestoneDetail.phaseName}</span>
+                      <span className="w-1 h-1 rounded-full bg-gray-600" />
+                      <span>Step {activeMilestoneDetail.iIdx + 1}</span>
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">{activeMilestoneDetail.name}</h3>
+                  </div>
+
+                  {/* Attachment/Resource Launcher widget */}
+                  <div className="space-y-3">
+                    <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Linked Deliverables & Assets</h4>
+                    {activeMilestoneDetail.assetUrl ? (
+                      <div className="p-5 rounded-2xl bg-[#11141D] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-300 flex-shrink-0">
+                            {activeMilestoneDetail.assetUrl.includes('figma.com') ? (
+                              <FigmaIcon />
+                            ) : activeMilestoneDetail.assetUrl.includes('drive.google.com') ? (
+                              <Folder size={20} className="text-[#BD00FF]" />
+                            ) : (
+                              <LinkIcon size={20} className="text-[#00F2FE]" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="text-sm font-bold text-white truncate">
+                              {activeMilestoneDetail.assetUrl.includes('figma.com') ? 'Figma Prototype Asset' : activeMilestoneDetail.assetUrl.includes('drive.google.com') ? 'Google Drive Shared Folder' : 'External Deliverable Resource'}
+                            </h5>
+                            <p className="text-[11px] text-gray-500 truncate mt-0.5">{activeMilestoneDetail.assetUrl}</p>
+                          </div>
+                        </div>
+
+                        <a 
+                          href={activeMilestoneDetail.assetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-primary py-2.5 px-4 text-xs flex items-center gap-1.5 shrink-0"
+                        >
+                          Open Asset <ExternalLink size={13} />
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="p-6 rounded-2xl bg-white/[0.01] border border-dashed border-white/5 text-center">
+                        <LinkIcon size={24} className="text-gray-600 mx-auto mb-2" />
+                        <p className="text-xs text-gray-400 font-bold">No active asset attached to this step yet.</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">Use the "Edit Details" pencil button on the roadmap card to attach a Figma, Drive, or external URL!</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contextual Discussion Notes Stream */}
+                  <div className="space-y-4 pt-4 border-t border-white/5">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <MessageSquare size={12} className="text-[#a855f7]" /> Step Discussions & Revisions
+                        </h4>
+                        <p className="text-[10px] text-gray-500">Provide direct feedback, request changes, or add team updates for this deliverable</p>
+                      </div>
+                    </div>
+
+                    {/* Milestone notes lists */}
+                    <div className="space-y-3">
+                      {(() => {
+                        const milestoneComments = activeProject.notes 
+                          ? activeProject.notes.filter(note => note.content.includes(`[Milestone: ${activeMilestoneDetail.name}]`)) 
+                          : [];
+
+                        return milestoneComments.length > 0 ? (
+                          milestoneComments.map(note => {
+                            const isClient = !note.author_id || note.content.startsWith('[Client') || note.content.includes('(Client)') || note.content.includes('[Client Note]');
+                            const cleanContent = note.content.replace(`[Milestone: ${activeMilestoneDetail.name}]`, '').trim();
+                            
+                            return (
+                              <div key={note.id} className="p-4 rounded-2xl bg-[#11141D] border border-white/5 space-y-2 hover:border-white/10 transition-all">
+                                <div className="flex justify-between items-center">
+                                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${
+                                    isClient 
+                                      ? 'bg-[#a855f7]/10 text-[#a855f7] border-[#a855f7]/25' 
+                                      : 'bg-[#e63946]/10 text-[#e63946] border-[#e63946]/25'
+                                  }`}>
+                                    {note.author?.full_name || (isClient ? 'Client' : 'Studio Manager')}
+                                  </span>
+                                  <span className="text-[9px] text-gray-500">{formatDate(note.created_at)}</span>
+                                </div>
+                                <p className="text-xs text-gray-300 leading-relaxed">{cleanContent}</p>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <div className="text-center py-10 bg-white/[0.01] border border-dashed border-white/5 rounded-2xl">
+                            <MessageSquare size={24} className="text-gray-600 mx-auto mb-2" />
+                            <p className="text-xs text-gray-400 font-bold">No comment history for this step yet.</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">Be the first to post a revision request, note, or update below!</p>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Sticky text area form at the bottom */}
+                <div className="p-4 bg-[#07090E]/80 border-t border-white/5">
+                  <form 
+                    onSubmit={async (e) => {
+                      await handleMilestoneNoteSubmit(e, activeMilestoneDetail.name)
+                    }} 
+                    className="flex items-end gap-3"
+                  >
+                    <div className="flex-1">
+                      <textarea 
+                        className="input-base w-full resize-none h-14 text-[13px] bg-[#0a0a0c]/60 focus:border-[#a855f7]/30 py-2 px-3"
+                        placeholder={`Write feedback or revision notes for ${activeMilestoneDetail.name}...`}
+                        value={milestoneNoteMessage}
+                        onChange={e => setMilestoneNoteMessage(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            await handleMilestoneNoteSubmit(e, activeMilestoneDetail.name)
+                          }
+                        }}
+                        required
+                      />
+                    </div>
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting || !milestoneNoteMessage.trim()}
+                      className="bg-[#a855f7] text-white hover:bg-[#b56bf9] font-black h-[44px] px-5 rounded-xl transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+                    >
+                      Post Note
+                    </button>
+                  </form>
+                </div>
+
+              </div>
+
             </motion.div>
           </div>
         )}
