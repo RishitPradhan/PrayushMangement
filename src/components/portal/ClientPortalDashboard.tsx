@@ -9,7 +9,8 @@ import { toast } from 'sonner'
 import { 
   FileText, MessageSquare, ExternalLink, Link as LinkIcon, 
   Download, CheckCircle2, Circle, Clock, Pencil, Plus, X, 
-  Upload, Folder, Sparkles, Check, DollarSign, Calendar
+  Upload, Folder, Sparkles, Check, DollarSign, Calendar,
+  ChevronDown, ChevronUp, Mail, Info
 } from 'lucide-react'
 
 interface ClientPortalDashboardProps {
@@ -22,6 +23,15 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [revisionMessage, setRevisionMessage] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState(data.projects[0]?.id || '')
+  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({
+    phase1: true,
+    phase2: true,
+    phase3: true
+  })
+
+  const togglePhase = (phase: string) => {
+    setExpandedPhases(prev => ({ ...prev, [phase]: !prev[phase] }))
+  }
 
   // Modals state
   const [showEditProjectModal, setShowEditProjectModal] = useState(false)
@@ -262,65 +272,342 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
               
-              {/* Project Status overview card */}
-              <section className="glass-card p-8 relative overflow-hidden group hover:border-[rgba(168,85,247,0.15)] transition-all duration-300">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#a855f7] opacity-[0.01] rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
+              {/* 1. Welcome Onboarding Card */}
+              <section className="glass-card p-6 sm:p-8 relative overflow-hidden group hover:border-[rgba(168,85,247,0.15)] transition-all duration-300">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#a855f7] opacity-[0.02] rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/4" />
                 
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[11px] font-black uppercase tracking-widest text-[#555]">Project Overview</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getStatusColor(activeProject.status)}`}>
-                      {activeProject.status.replace('-', ' ')}
-                    </span>
+                <div className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-[#a855f7] bg-[#a855f7]/5 border border-[#a855f7]/10 w-fit">
+                      <Sparkles size={11} /> Project Workspace
+                    </div>
+                    
+                    {/* Edit Project Button */}
+                    <button 
+                      onClick={openEditModal}
+                      className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl border border-[rgba(255,255,255,0.04)] transition-all flex items-center gap-1.5 text-xs font-semibold self-start sm:self-auto"
+                    >
+                      <Pencil size={12} /> Edit Details
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                      Welcome to your project portal!
+                    </h2>
+                    <p className="text-gray-400 text-sm leading-relaxed max-w-2xl">
+                      This is your central hub for everything related to your website redesign. Here you’ll find project updates, deliverables, feedback tools, and everything you need to stay in the loop – all in one place.
+                    </p>
                   </div>
 
-                  {/* Edit Project Button - Visible to everyone */}
-                  <button 
-                    onClick={openEditModal}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl border border-[rgba(255,255,255,0.04)] transition-all flex items-center gap-1.5 text-xs font-semibold"
-                  >
-                    <Pencil size={12} /> Edit Details
-                  </button>
-                </div>
-                
-                <div className="mb-8">
-                  <h3 className="text-xl font-extrabold text-white mb-2">{activeProject.name}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">{activeProject.description || 'No description provided.'}</p>
-                </div>
+                  {/* Onboarding grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                    <div className="space-y-3">
+                      <h4 className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-2 text-gray-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7]" /> What you’ll find here
+                      </h4>
+                      <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#a855f7] font-bold">✓</span>
+                          <span>Project updates and current status – always know where things stand</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#a855f7] font-bold">✓</span>
+                          <span>Important documents and files – easily access what you need</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#a855f7] font-bold">✓</span>
+                          <span>Direct communication and feedback tools – share your thoughts anytime</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#a855f7] font-bold">✓</span>
+                          <span>Clear next steps and deliverables – see what’s coming up next</span>
+                        </li>
+                      </ul>
+                    </div>
 
-                {/* Progress Bar */}
-                <div className="space-y-3">
-                  <div className="flex justify-between text-[11px] font-black text-gray-400 uppercase tracking-widest">
-                    <span>Active Progress</span>
-                    <span className="text-white">{activeProject.progress}%</span>
+                    <div className="space-y-3">
+                      <h4 className="text-[11px] font-black text-white uppercase tracking-wider flex items-center gap-2 text-gray-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#e63946]" /> Quick start
+                      </h4>
+                      <ul className="space-y-2.5 text-xs text-gray-400 font-medium">
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#e63946] font-bold">1</span>
+                          <span>Read through the Getting Started guide in Phase 1 below</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#e63946] font-bold">2</span>
+                          <span>Upload your brand assets so we can hit the ground running</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#e63946] font-bold">3</span>
+                          <span>Book your kickoff call using the scheduling link in Phase 1</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-[#e63946] font-bold">4</span>
+                          <span>Check back anytime to track progress and review deliverables</span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                  <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden border border-[rgba(255,255,255,0.04)]">
-                    <motion.div 
-                      className="h-full bg-gradient-to-r from-[#a855f7] via-[#8b5cf6] to-[#e63946]"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${activeProject.progress}%` }}
-                      transition={{ duration: 1, delay: 0.2 }}
-                    />
+
+                  <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3">
+                    <Info size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      If you have any questions or need help navigating your portal, don’t hesitate to reach out to your project manager <strong>Sarah</strong> at <a href="mailto:sarah@polymark.com" className="text-[#a855f7] hover:underline font-bold">sarah@polymark.com</a>.
+                    </p>
                   </div>
                 </div>
-
-                {activeProject.due_date && (
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-6 pt-5 border-t border-[rgba(255,255,255,0.04)]">
-                    <Calendar size={13} className="text-[#a855f7]" />
-                    <span>Estimated Completion: <strong className="text-gray-300">{formatDate(activeProject.due_date)}</strong></span>
-                  </div>
-                )}
               </section>
 
-              {/* Deliverables & Assets Grid */}
+              {/* 2. Project Meta Metrics Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Current Phase</div>
+                  <div className="text-sm font-extrabold text-[#a855f7] tracking-wide flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#a855f7] animate-pulse" /> Design & Development
+                  </div>
+                </div>
+                <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Next Phase</div>
+                  <div className="text-sm font-extrabold text-white tracking-wide">
+                    Launch & Handoff
+                  </div>
+                </div>
+                <div className="glass-card p-5 relative overflow-hidden group hover:border-white/10 transition-all">
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Estimated Completion</div>
+                  <div className="text-sm font-extrabold text-[#eab308] tracking-wide">
+                    {activeProject.due_date ? formatDate(activeProject.due_date) : 'May 2026'}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Interactive Roadmap (Phase 1, 2, 3) */}
+              <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-lg font-black tracking-tight text-white uppercase">Project Roadmap</h3>
+                    <p className="text-xs text-gray-500">Track milestones, guidelines, deliverables, and approvals</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Phase 1: Discovery */}
+                  <div className="glass-card p-0 overflow-hidden border border-white/5">
+                    <button 
+                      onClick={() => togglePhase('phase1')}
+                      className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase tracking-wider">Phase 1</span>
+                          <h4 className="text-sm font-black text-white">Discovery</h4>
+                        </div>
+                        <p className="text-xs text-gray-400">Aligning on your vision, goals, and project scope</p>
+                      </div>
+                      {expandedPhases.phase1 ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {expandedPhases.phase1 && (
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: 'auto' }}
+                          exit={{ height: 0 }}
+                          className="overflow-hidden border-t border-white/5 bg-black/20"
+                        >
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h5 className="text-[13px] font-bold text-white">Getting started</h5>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Your quick-start guide to the project and your portal.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">Kickoff meeting</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">15 Mar</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Let’s align on the project scope and timeline.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h5 className="text-[13px] font-bold text-white">Brand guidelines</h5>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Your brand identity, colors, and typography.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">Brand assets</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#a855f7]/10 text-[#a855f7] border border-[#a855f7]/20">1 pending</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Upload your logos, fonts, and brand materials.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all md:col-span-2">
+                              <CheckCircle2 size={16} className="text-[#a855f7] mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">Timeline & milestones</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">21 Mar</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Key dates and deliverables for each phase.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Phase 2: Design & Development */}
+                  <div className="glass-card p-0 overflow-hidden border border-white/5">
+                    <button 
+                      onClick={() => togglePhase('phase2')}
+                      className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider">Phase 2</span>
+                          <h4 className="text-sm font-black text-white">Design & Development</h4>
+                        </div>
+                        <p className="text-xs text-gray-400">Creating, refining, and building your new website</p>
+                      </div>
+                      {expandedPhases.phase2 ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {expandedPhases.phase2 && (
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: 'auto' }}
+                          exit={{ height: 0 }}
+                          className="overflow-hidden border-t border-white/5 bg-black/20"
+                        >
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0 animate-pulse" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">Design mockups</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">1 Apr</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Visual concepts for your review and approval.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h5 className="text-[13px] font-bold text-white">Design inspiration</h5>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Mood board and visual references for your project.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">Feedback & revisions</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-black">4 steps</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Share your feedback and discuss changes with the team.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">SEO foundations</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20">2 keys</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Technical setup and content optimization.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Phase 3: Launch & Handoff */}
+                  <div className="glass-card p-0 overflow-hidden border border-white/5">
+                    <button 
+                      onClick={() => togglePhase('phase3')}
+                      className="w-full flex items-center justify-between p-5 hover:bg-white/[0.01] transition-all text-left"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2.5">
+                          <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider">Phase 3</span>
+                          <h4 className="text-sm font-black text-white">Launch & Handoff</h4>
+                        </div>
+                        <p className="text-xs text-gray-400">Final files, documentation, and everything you need to go live</p>
+                      </div>
+                      {expandedPhases.phase3 ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {expandedPhases.phase3 && (
+                        <motion.div 
+                          initial={{ height: 0 }}
+                          animate={{ height: 'auto' }}
+                          exit={{ height: 0 }}
+                          className="overflow-hidden border-t border-white/5 bg-black/20"
+                        >
+                          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h5 className="text-[13px] font-bold text-white">Final deliverables</h5>
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">1 May</span>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Download your completed project files.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h5 className="text-[13px] font-bold text-white">Site management guide</h5>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Everything you need to manage your new site.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h5 className="text-[13px] font-bold text-white">Invoice & payment</h5>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Payment details and receipts.</p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-3 hover:bg-white/[0.04] transition-all">
+                              <Circle size={16} className="text-gray-600 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <h5 className="text-[13px] font-bold text-white">Ongoing support</h5>
+                                <p className="text-xs text-gray-400 mt-1 leading-relaxed">Your maintenance and support options.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </section>
+
+              {/* 4. Deliverables & Assets Grid */}
               <section className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="space-y-0.5">
-                    <h2 className="text-lg font-black tracking-tight">Deliverables & Assets</h2>
+                    <h2 className="text-lg font-black tracking-tight text-white uppercase">Deliverables & Assets</h2>
                     <p className="text-xs text-gray-500">Project files, workspace links, and final designs</p>
                   </div>
                   
-                  {/* Add Asset Button - Visible to everyone */}
+                  {/* Add Asset Button */}
                   <button 
                     onClick={() => setShowAddAssetModal(true)}
                     className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5"
@@ -407,6 +694,39 @@ export function ClientPortalDashboard({ data: initialData, token }: ClientPortal
                     <p className="text-gray-500 text-xs">No payment records found.</p>
                   </div>
                 )}
+              </section>
+
+              {/* Questions / Support Manager Card */}
+              <section className="glass-card p-8 relative overflow-hidden group hover:border-[#a855f7]/30 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#a855f7] opacity-[0.02] rounded-full blur-2xl pointer-events-none" />
+                
+                <h2 className="text-sm font-black uppercase tracking-widest text-[#555] mb-4 flex items-center gap-2">
+                  <Mail size={14} className="text-gray-500" />
+                  Questions?
+                </h2>
+                
+                <div className="space-y-4">
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Have questions about your website redesign? Need help navigating your portal? Get in touch with your dedicated project manager.
+                  </p>
+
+                  <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div className="w-10 h-10 rounded-full bg-[#a855f7]/10 flex items-center justify-center text-[#a855f7] font-black text-sm">
+                      S
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Sarah</h4>
+                      <p className="text-[10px] text-gray-500">Project Manager</p>
+                    </div>
+                  </div>
+
+                  <a 
+                    href="mailto:sarah@polymark.com?subject=Website Redesign Inquiry"
+                    className="w-full bg-[#a855f7] text-white hover:bg-[#b56bf9] font-extrabold py-3 rounded-xl transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2"
+                  >
+                    <Mail size={13} /> Get In Touch
+                  </a>
+                </div>
               </section>
 
               {/* Revision Requests */}
